@@ -567,6 +567,7 @@ class Trainer(
             ref_model.on_pretrain_routine_end()
 
     def train(self):
+
         self.pre_training_routine()
 
         if not self.is_global_zero and self.progress_bar_callback is not None:
@@ -730,6 +731,7 @@ class Trainer(
 
         # enable train mode again
         self.evaluation_loop.on_evaluation_model_train()
+
         torch.set_grad_enabled(True)
 
         return eval_loop_results, deprecated_eval_results
@@ -1041,7 +1043,7 @@ class Trainer(
                 hook_fx = getattr(model_ref, hook_name)
                 output = hook_fx(*args, **kwargs)
 
-            # if the PL module doesn't have the hook then call the accelator
+            # if the PL module doesn't have the hook then call the accelerator
             # used to auto-reduce things for the user with Results obj
             elif hasattr(self.accelerator_backend, hook_name):
                 accelerator_hook = getattr(self.accelerator_backend, hook_name)

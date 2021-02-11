@@ -27,9 +27,10 @@ from pytorch_lightning import _logger as log
 from pytorch_lightning.distributed import LightningDistributed
 from pytorch_lightning.overrides import LightningDistributedModule
 from pytorch_lightning.overrides.distributed import prepare_for_backward
+from pytorch_lightning.plugins.environments import SLURMEnvironment, TorchElasticEnvironment
 from pytorch_lightning.plugins.environments.cluster_environment import ClusterEnvironment
 from pytorch_lightning.plugins.training_type.parallel import ParallelPlugin
-from pytorch_lightning.utilities import _HYDRA_AVAILABLE, _PYTORCH_GREATER_EQUAL_1_7_0, rank_zero_warn
+from pytorch_lightning.utilities import _HYDRA_AVAILABLE, _TORCH_GREATER_EQUAL_1_7, rank_zero_warn
 from pytorch_lightning.utilities.distributed import (
     find_free_network_port,
     rank_zero_only,
@@ -87,7 +88,7 @@ class DDPPlugin(ParallelPlugin):
         self._model = model
 
         # start the other scripts
-        # TODO: make sure this works, in torchelastic we should not launch child processes!
+        # TODO: refactor and let generic cluster env hold the information about who spawns the processes
         if os.environ.get("PL_IN_DDP_SUBPROCESS", "0") != "1":
             self._call_children_scripts()
 
@@ -181,7 +182,7 @@ class DDPPlugin(ParallelPlugin):
 
     def pre_configure_ddp(self):
         # todo: PyTorch 1.7.0 DDP introduces ``self.reducer._rebuild_buckets()``` breaking manual_optimization
-        if _PYTORCH_GREATER_EQUAL_1_7_0 and not self.lightning_module.automatic_optimization:
+        if _TORCH_GREATER_EQUAL_1_7 and not self.lightning_module.automatic_optimization:
             rank_zero_warn(
                 "From PyTorch 1.7.0, Lightning ``manual_optimization`` needs to set ``find_unused_parameters=True`` "
                 "to properly work with DDP."

@@ -231,7 +231,7 @@ class BackendConnector(object):
 
     @property
     def tpu_id(self):
-        if self.on_tpu:
+        if self.on_tpu and isinstance(self.tpu_cores, list):
             return self.tpu_cores[0]
 
         return None
@@ -266,7 +266,10 @@ class BackendConnector(object):
 
     @property
     def is_distributed(self):
-        return self.use_ddp or self.use_ddp2 or self.use_horovod or self.on_tpu or self.use_deepspeed
+        is_distributed = self.use_ddp or self.use_ddp2 or self.use_horovod or self.use_deepspeed
+        if self.on_tpu:
+            is_distributed |= self.training_type_plugin.is_distributed
+        return is_distributed
 
     @property
     def num_gpus(self) -> int:
@@ -288,8 +291,8 @@ class BackendConnector(object):
         return devices
 
     @property
-    def root_gpu(self) -> int:
-        return self.accelerator.root_device.index
+    def root_gpu(self) -> Optional[int]:
+        return self.accelerator.root_device.index if not isinstance(self.accelerator, TPUAccelerator) else None
 
     @property
     def is_using_torchelastic(self):
@@ -404,7 +407,10 @@ class BackendConnector(object):
         elif self.use_horovod:
             plugin = HorovodPlugin(parallel_devices=self.parallel_devices)
         elif self.on_tpu:
-            plugin = SingleTPUPlugin(self.tpu_id)
+            if isinstance(self.tpu_cores, list):
+                plugin = SingleTPUPlugin(self.tpu_id)
+            else:
+                plugin = TPUSpawnPlugin(parallel_devices=list(range(self.tpu_cores)))
         else:
             single_gpu_ordinal = device_parser.determine_root_gpu_device(self.parallel_device_ids)
             plugin = SingleDevicePlugin(device=torch.device(f"cuda:{single_gpu_ordinal}" if self.on_gpu else "cpu"))
@@ -453,10 +459,13 @@ class BackendConnector(object):
             return self._cluster_environment
         if self.is_slurm_managing_tasks:
             env = SLURMEnvironment()
+            # TODO: decouple DDP from SLURM
+            #   refactor and let generic cluster env hold the information about who spawns the processes
+            os.environ["PL_IN_DDP_SUBPROCESS"] = "1"
         elif self.is_using_torchelastic:
             env = TorchElasticEnvironment()
             # TODO: decouple DDP from TE
-            #   maybe introduce a DefaultEnvironment?
+            #   refactor and let generic cluster env hold the information about who spawns the processes
             os.environ["PL_IN_DDP_SUBPROCESS"] = "1"
         else:
             # TODO: maybe introduce a DefaultEnvironment?

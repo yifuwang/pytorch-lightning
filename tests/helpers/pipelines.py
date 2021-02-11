@@ -58,7 +58,6 @@ def run_model_test(
     # logger file to get meta
     logger = get_default_logger(save_dir, version=version)
     trainer_options.update(logger=logger)
-
     trainer = Trainer(**trainer_options)
     initial_values = torch.tensor([torch.sum(torch.abs(x)) for x in model.parameters()])
     trainer.fit(model, datamodule=data)
@@ -95,9 +94,9 @@ def run_model_test(
 
 def run_prediction(trained_model, dataloader, dp=False, min_acc=0.25):
     if isinstance(trained_model, BoringModel):
-        return _boring_model_run_prediction(trained_model, dataloader, dp, min_acc)
+        return _boring_model_run_prediction(trained_model, dataloader, min_acc)
     else:
-        return _eval_model_template_run_prediction(trained_model, dataloader, dp, min_acc)
+        return _eval_model_template_run_prediction(trained_model, dataloader, dp, min_acc=min_acc)
 
 
 def _eval_model_template_run_prediction(trained_model, dataloader, dp=False, min_acc=0.50):
@@ -128,11 +127,15 @@ def _eval_model_template_run_prediction(trained_model, dataloader, dp=False, min
     assert acc >= min_acc, f"This model is expected to get > {min_acc} in test set (it got {acc})"
 
 
-def _boring_model_run_prediction(trained_model, dataloader, dp=False, min_acc=0.25):
+# TODO: This test compares a loss value with a min accuracy - complete non-sense!
+# create BoringModels that make actual predictions!
+def _boring_model_run_prediction(trained_model, dataloader, min_acc=0.25):
     # run prediction on 1 batch
+    trained_model.cpu()
     batch = next(iter(dataloader))
+
     with torch.no_grad():
         output = trained_model(batch)
-    acc = trained_model.loss(batch, output)
 
+    acc = trained_model.loss(batch, output)
     assert acc >= min_acc, f"This model is expected to get, {min_acc} in test set but got {acc}"

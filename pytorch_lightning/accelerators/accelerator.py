@@ -18,11 +18,7 @@ from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 
 from pytorch_lightning.core import LightningModule
-from pytorch_lightning.plugins.precision import (
-    ApexMixedPrecisionPlugin,
-    NativeMixedPrecisionPlugin,
-    PrecisionPlugin,
-)
+from pytorch_lightning.plugins.precision import ApexMixedPrecisionPlugin, NativeMixedPrecisionPlugin, PrecisionPlugin
 from pytorch_lightning.plugins.training_type import TrainingTypePlugin
 from pytorch_lightning.utilities.apply_func import move_data_to_device
 from pytorch_lightning.utilities.distributed import all_gather_ddp_if_available
@@ -74,7 +70,7 @@ class Accelerator(object):
             model: the model to train
         """
         self.connect_training_type_plugin(self.training_type_plugin, model)
-        self.setup_optimizers(trainer, model)
+        self.setup_optimizers(trainer)
         self.connect_precision_plugin(self.precision_plugin)
 
     @property
@@ -304,7 +300,7 @@ class Accelerator(object):
         """Hook to do something at the end of the training"""
         pass
 
-    def setup_optimizers(self, trainer: "Trainer", model: LightningModule):
+    def setup_optimizers(self, trainer: "Trainer"):
         """creates optimizers and schedulers
 
         Args:
@@ -314,7 +310,9 @@ class Accelerator(object):
         if trainer.testing is True:
             return
 
-        optimizers, lr_schedulers, optimizer_frequencies = self.training_type_plugin.init_optimizers(trainer, model)
+        optimizers, lr_schedulers, optimizer_frequencies = self.training_type_plugin.init_optimizers(
+            trainer=trainer, model=self.lightning_module
+        )
         self.optimizers = optimizers
         self.lr_schedulers = lr_schedulers
         self.optimizer_frequencies = optimizer_frequencies

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from abc import ABC, abstractmethod
-from typing import Any, Optional, TYPE_CHECKING, Union, Callable
+from typing import Any, Callable, Optional, TYPE_CHECKING, Union
 
 import torch
 from torch.nn import Module
@@ -33,6 +33,10 @@ class TrainingTypePlugin(Plugin, ABC):
         self._model = None
         self._results = None
         self.global_rank = 0
+
+    @property
+    def should_finalize(self):
+        return True
 
     @property
     @abstractmethod
@@ -136,6 +140,9 @@ class TrainingTypePlugin(Plugin, ABC):
 
     def test_step_end(self, output):
         return output
+
+    def on_save(self, checkpoint: dict) -> dict:
+        return checkpoint
 
     def init_optimizers(self, trainer: "Trainer", model: LightningModule):
         return trainer.init_optimizers(model)
