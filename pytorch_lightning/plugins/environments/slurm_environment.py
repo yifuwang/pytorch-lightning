@@ -24,6 +24,9 @@ class SLURMEnvironment(ClusterEnvironment):
     def __init__(self):
         super().__init__()
 
+    def spawns_children(self) -> bool:
+        return True
+
     def master_address(self):
         # figure out the root node addr
         slurm_nodelist = os.environ.get("SLURM_NODELIST")
