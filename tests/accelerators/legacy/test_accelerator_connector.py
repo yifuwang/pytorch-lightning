@@ -25,6 +25,7 @@ from pytorch_lightning.accelerators.gpu import GPUAccelerator
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.plugins import DDP2Plugin, DDPPlugin, DDPSpawnPlugin, PrecisionPlugin, SingleDevicePlugin
 from pytorch_lightning.plugins.environments import ClusterEnvironment, SLURMEnvironment, TorchElasticEnvironment
+from pytorch_lightning.plugins.environments.default_environment import DefaultEnvironment
 from tests.helpers.boring_model import BoringModel
 
 
@@ -44,7 +45,7 @@ def test_accelerator_choice_ddp_cpu(tmpdir):
     )
     assert isinstance(trainer.accelerator_backend, CPUAccelerator)
     assert isinstance(trainer.training_type_plugin, DDPSpawnPlugin)
-    assert isinstance(trainer.training_type_plugin.cluster_environment, TorchElasticEnvironment)
+    assert isinstance(trainer.training_type_plugin.cluster_environment, DefaultEnvironment)
 
 
 @mock.patch.dict(os.environ, {"CUDA_VISIBLE_DEVICES": "0,1"})
@@ -58,7 +59,7 @@ def test_accelerator_choice_ddp(cuda_available_mock, device_count_mock):
     )
     assert isinstance(trainer.accelerator_backend, GPUAccelerator)
     assert isinstance(trainer.training_type_plugin, DDPPlugin)
-    assert isinstance(trainer.training_type_plugin.cluster_environment, TorchElasticEnvironment)
+    assert isinstance(trainer.training_type_plugin.cluster_environment, DefaultEnvironment)
 
 
 @mock.patch.dict(os.environ, {"CUDA_VISIBLE_DEVICES": "0,1"})
@@ -72,7 +73,7 @@ def test_accelerator_choice_ddp_spawn(cuda_available_mock, device_count_mock):
     )
     assert isinstance(trainer.accelerator_backend, GPUAccelerator)
     assert isinstance(trainer.training_type_plugin, DDPSpawnPlugin)
-    assert isinstance(trainer.training_type_plugin.cluster_environment, TorchElasticEnvironment)
+    assert isinstance(trainer.training_type_plugin.cluster_environment, DefaultEnvironment)
 
 
 @pytest.mark.skipif(torch.cuda.device_count() < 2, reason="test requires multi-GPU machine")
