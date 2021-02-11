@@ -35,7 +35,6 @@ class DefaultEnvironment(ClusterEnvironment):
         super().__init__()
         self._world_size = None
 
-    @property
     def spawns_children(self) -> bool:
         return False
 
