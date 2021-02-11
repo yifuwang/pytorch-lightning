@@ -287,7 +287,7 @@ def test_accelerator_choice_ddp_cpu_custom_cluster(device_count_mock):
     Test that we choose the custom cluster even when SLURM or TE flags are around
     """
 
-    class CustomCluster(ClusterEnvironment):
+    class CustomCluster(DefaultEnvironment):
 
         def master_address(self):
             return 'asdf'
