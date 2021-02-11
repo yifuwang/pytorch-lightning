@@ -116,7 +116,7 @@ class DeepSpeedPlugin(DDPPlugin):
         self.model = model
 
     def configure_scheduler(self, lr_scheduler):
-        # todo: this duplicates the defaults from init_optimizers
+        # this duplicates the defaults from init_optimizers
         scheduler = {
             'scheduler': lr_scheduler,
             'name': None,  # no custom name
@@ -159,7 +159,7 @@ class DeepSpeedPlugin(DDPPlugin):
         self._format_precision_config()
 
     def _format_optimizer_config(self):
-        if "optimizer" not in self.config:
+        if ("optimizer" not in self.config) or ("scheduler" not in self.config):
             self.optimizer, self.scheduler = self.model.configure_optimizers()
 
             if not (isinstance(self.optimizer, dict) or isinstance(self.scheduler, dict)):
@@ -174,7 +174,7 @@ class DeepSpeedPlugin(DDPPlugin):
 
             optimizer_name, optimizer_params = self.optimizer.items()[0]
             scheduler_name, scheduler_params = self.scheduler.items()[0]
-            self.config["zero_allow_untested_optimizer"] = True
+
             self.config["optimizer"] = {
                 "type": optimizer_name,
                 "params": optimizer_params,
@@ -195,16 +195,16 @@ class DeepSpeedPlugin(DDPPlugin):
                 "Within the DeepSpeed config, do not set gradient_accumulation_steps "
                 "as this will be set via accumulate_grad_batches=x argument passed via the Lightning Trainer."
             )
-        self.config["train_micro_batch_size_per_gpu"] = self.model.train_dataloader().batch_size
-        self.config["gradient_accumulation_steps"] = self.model.trainer.accumulate_grad_batches
+        self.config["train_micro_batch_size_per_gpu"] = self.lightning_module.train_dataloader().batch_size
+        self.config["gradient_accumulation_steps"] = self.lightning_module.trainer.accumulate_grad_batches
         if "gradient_clipping" not in self.config:
-            self.config["gradient_clipping"] = self.model.trainer.gradient_clip_val
+            self.config["gradient_clipping"] = self.lightning_module.trainer.gradient_clip_val
 
     def _format_precision_config(self):
 
-        amp_type = self.model.trainer.accelerator_connector.amp_type
-        amp_level = self.model.trainer.accelerator_connector.amp_level
-        precision = self.model.trainer.accelerator_connector.precision
+        amp_type = self.lightning_module.trainer.accelerator_connector.amp_type
+        amp_level = self.lightning_module.trainer.accelerator_connector.amp_level
+        precision = self.lightning_module.trainer.accelerator_connector.precision
         if precision == 16:
             if "amp" not in self.config and amp_type == AMPType.NATIVE:
                 self.config["fp16"] = {"enabled": True}
