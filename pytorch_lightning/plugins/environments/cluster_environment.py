@@ -27,7 +27,7 @@ class ClusterEnvironment(ABC):
         """ The master address through which all processes connect and communicate. """
 
     @abstractmethod
-    def master_port(self):
+    def master_port(self) -> int:
         """ An open and configured port in the master node through which all processes communicate. """
 
     @abstractmethod

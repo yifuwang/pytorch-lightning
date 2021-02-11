@@ -52,4 +52,5 @@ class DefaultEnvironment(ClusterEnvironment):
         return int(os.environ.get("LOCAL_RANK", 0))
 
     def node_rank(self) -> int:
-        return int(os.environ.get("NODE_RANK", 0))
+        group_rank = os.environ.get("GROUP_RANK", 0)
+        return int(os.environ.get("NODE_RANK", group_rank))
