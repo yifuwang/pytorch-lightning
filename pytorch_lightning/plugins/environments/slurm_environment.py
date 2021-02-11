@@ -68,7 +68,7 @@ class SLURMEnvironment(ClusterEnvironment):
         return default_port
 
     def world_size(self):
-        return self._world_size
+        return None
 
     def local_rank(self):
         return int(os.environ['SLURM_LOCALID'])
