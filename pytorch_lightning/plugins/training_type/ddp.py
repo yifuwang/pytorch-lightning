@@ -176,8 +176,10 @@ class DDPPlugin(ParallelPlugin):
         self.world_size = self.num_nodes * self.num_processes
 
     def pre_configure_ddp(self):
-        # todo: PyTorch 1.7.0 DDP introduces ``self.reducer._rebuild_buckets()``` breaking manual_optimization
-        if _PYTORCH_GREATER_EQUAL_1_7_0 and not self.lightning_module.automatic_optimization:
+        # todo: PyTorch 1.7.0 DDP introduces ``self.reducer._rebuild_buckets()`` breaking manual_optimization
+        if _TORCH_GREATER_EQUAL_1_7 and not self.lightning_module.automatic_optimization and not self._ddp_kwargs.get(
+            "find_unused_parameters", False
+        ):
             rank_zero_warn(
                 "From PyTorch 1.7.0, Lightning ``manual_optimization`` needs to set ``find_unused_parameters=True`` "
                 "to properly work with DDP."
@@ -185,9 +187,7 @@ class DDPPlugin(ParallelPlugin):
             self._ddp_kwargs["find_unused_parameters"] = True
 
     def configure_ddp(self):
-
         self.pre_configure_ddp()
-
         self._model = DistributedDataParallel(
             LightningDistributedModule(self.model),
             device_ids=self.determine_ddp_device_ids(),

@@ -48,6 +48,7 @@ class TrainLoop:
         self._curr_step_result = None
         self._cur_grad_norm_dict = None
         self._multiple_trainloader_mode = multiple_trainloader_mode
+        self._skip_backward = False
         self.trainer._multiple_trainloader_mode = multiple_trainloader_mode
 
     def on_trainer_init(
@@ -74,7 +75,7 @@ class TrainLoop:
 
         # If neither max_epochs or max_steps is set, then use existing default of max_epochs = 1000
         self.trainer.max_epochs = 1000 if (max_epochs is None and max_steps is None) else max_epochs
-        # If neither max_epochs or max_steps is set, then use existing default of min_epochs = 1
+        # If neither min_epochs or min_steps is set, then use existing default of min_epochs = 1
         self.trainer.min_epochs = 1 if (min_epochs is None and min_steps is None) else min_epochs
         self.trainer.max_steps = max_steps
         self.trainer.min_steps = min_steps
@@ -96,8 +97,9 @@ class TrainLoop:
         return num_optimizers
 
     def should_skip_training(self):
+        should_by_max_steps = self.trainer.max_steps is not None and self.trainer.global_step >= self.trainer.max_steps
         should_by_epoch = self.trainer.max_epochs is not None and self.trainer.current_epoch >= self.trainer.max_epochs
-        return should_by_epoch or self.trainer.num_training_batches == 0
+        return should_by_max_steps or should_by_epoch or self.trainer.num_training_batches == 0
 
     def on_train_start(self):
         # hook
@@ -135,8 +137,10 @@ class TrainLoop:
         # hook
         self.trainer.call_hook("on_train_end")
 
+        # todo: TPU 8 cores hangs in flush with TensorBoard. Might do for all loggers.
+        # It might be related to xla tensors blocked when moving the cpu
         # kill loggers
-        if self.trainer.logger is not None:
+        if self.trainer.logger is not None and self.trainer.training_type_plugin.should_finalize:
             self.trainer.logger.finalize("success")
 
         # summarize profile results
@@ -775,7 +779,7 @@ class TrainLoop:
                     self.warning_cache.warn("training_step returned None if it was on purpose, ignore this warning...")
                 return None
 
-            if self.trainer.train_loop.automatic_optimization:
+            if not self._skip_backward and self.trainer.train_loop.automatic_optimization:
                 # backward pass
                 with self.trainer.profiler.profile("model_backward"):
                     self.backward(result, optimizer, opt_idx)

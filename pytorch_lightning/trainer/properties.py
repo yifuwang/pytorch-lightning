@@ -131,10 +131,6 @@ class TrainerProperties(ABC):
         return self.accelerator_connector.tpu_cores
 
     @property
-    def gpus(self) -> Union[int, List[torch.device]]:
-        return self.accelerator_connector.gpus
-
-    @property
     def num_gpus(self) -> int:
         return self.accelerator_connector.num_gpus
 
@@ -242,10 +238,6 @@ class TrainerProperties(ABC):
     @property
     def gpus(self) -> Optional[Union[List[int], str, int]]:
         return self.accelerator_connector.gpus
-
-    @property
-    def num_gpus(self) -> int:
-        return self.accelerator_connector.num_gpus
 
     @property
     def data_parallel(self) -> bool:
@@ -356,7 +348,7 @@ class TrainerProperties(ABC):
         return self.accelerator.model
 
     @model.setter
-    def model(self, model: Any):
+    def model(self, model: torch.nn.Module):
         """
         Setter for the model, pass-through to accelerator and plugin where the model reference is stored.
         Used by the Tuner to reset the state of Trainer and Accelerator.

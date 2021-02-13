@@ -41,3 +41,6 @@ class ClusterEnvironment(ABC):
     @abstractmethod
     def node_rank(self) -> int:
         """ The rank (index) of the node on which the current process runs. """
+
+    def node_rank(self) -> int:
+        pass

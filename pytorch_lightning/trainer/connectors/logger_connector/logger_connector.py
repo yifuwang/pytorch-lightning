@@ -14,7 +14,7 @@
 import os
 from copy import deepcopy
 from pprint import pprint
-from typing import Any, Dict, Iterable, Union
+from typing import Dict, Iterable, Union
 
 import torch
 
@@ -32,13 +32,13 @@ from pytorch_lightning.utilities.model_helpers import is_overridden
 
 class LoggerConnector:
 
-    def __init__(self, trainer, log_gpu_memory):
+    def __init__(self, trainer, log_gpu_memory: bool):
         self.trainer = trainer
         self.log_gpu_memory = log_gpu_memory
         self._callback_metrics = MetricsHolder()
         self._evaluation_callback_metrics = MetricsHolder(to_float=True)
         self._logged_metrics = MetricsHolder()
-        self._progress_bar_metrics = MetricsHolder()
+        self._progress_bar_metrics = MetricsHolder(to_float=True)
         self.eval_loop_results = []
         self._cached_results = {stage: EpochResultStore(trainer, stage) for stage in RunningStage}
         self._cached_results[None] = EpochResultStore(trainer, None)
@@ -89,7 +89,7 @@ class LoggerConnector:
         )
         return metrics_holder.metrics
 
-    def set_metrics(self, key: str, val: Any) -> None:
+    def set_metrics(self, key: str, val: Dict) -> None:
         metrics_holder = getattr(self, f"_{key}", None)
         metrics_holder.reset(val)
 

@@ -167,7 +167,7 @@ class ApexMixedPrecisionPlugin(MixedPrecisionPlugin):
         lambda_closure()
 
         if not pl_module.automatic_optimization:
-            optimizer.step()
             pl_module.trainer.call_hook("on_after_backward")
+            optimizer.step()
 
         return False

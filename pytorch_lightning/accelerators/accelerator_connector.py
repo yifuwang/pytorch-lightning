@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import os
-from typing import Optional, Sequence
+from typing import List, Optional, Sequence, Union
 
 import torch
 
@@ -41,7 +41,6 @@ from pytorch_lightning.plugins import (
     TrainingTypePlugin,
 )
 from pytorch_lightning.plugins.environments import ClusterEnvironment, SLURMEnvironment, TorchElasticEnvironment
-from pytorch_lightning.plugins.environments.default_environment import DefaultEnvironment
 from pytorch_lightning.tuner.auto_gpu_select import pick_multiple_gpus
 from pytorch_lightning.utilities import (
     _APEX_AVAILABLE,
@@ -168,16 +167,16 @@ class BackendConnector(object):
 
                 else:
                     raise MisconfigurationException(
-                        'You can only specify one precision and one training type plugin. '
-                        'Found more than 1 training type plugin'
+                        'You can only specify one precision and one training type plugin.'
+                        f' Found more than 1 training type plugin: {type(plug).__name__}'
                     )
             elif isinstance(plug, PrecisionPlugin):
                 if precision is None:
                     precision = plug
                 else:
                     raise MisconfigurationException(
-                        'You can only specify one precision and one training type plugin. '
-                        'Found more than 1 precision plugin'
+                        'You can only specify one precision and one training type plugin.'
+                        f' Found more than 1 precision plugin: {type(plug).__name__}'
                     )
 
             elif isinstance(plug, ClusterEnvironment):
@@ -185,13 +184,11 @@ class BackendConnector(object):
                     cluster_environment = plug
                 else:
                     raise MisconfigurationException(
-                        'You can only specify one cluster environment '
-                        'Found more than 1 cluster environment plugin'
+                        'You can only specify one cluster environment. Found more than 1 cluster environment plugin'
                     )
             else:
                 raise MisconfigurationException(
-                    f'Found invalid type for plugin {plug}. '
-                    'Expected a precision or training type plugin.'
+                    f'Found invalid type for plugin {plug}. Expected a precision or training type plugin.'
                 )
 
         self._training_type_plugin = training_type
@@ -219,43 +216,50 @@ class BackendConnector(object):
         return self._cluster_environment
 
     @property
-    def on_cpu(self):
+    def on_cpu(self) -> bool:
         return self._device_type == DeviceType.CPU
 
     @property
-    def on_tpu(self):
+    def on_tpu(self) -> bool:
         return self.tpu_cores is not None
 
     @property
-    def tpu_id(self):
-        if self.on_tpu:
+    def tpu_id(self) -> Optional[int]:
+        if self.on_tpu and isinstance(self.tpu_cores, list):
             return self.tpu_cores[0]
 
         return None
 
     @property
-    def on_gpu(self):
+    def on_gpu(self) -> bool:
         gpus = self.parallel_device_ids
         return gpus is not None and len(gpus) > 0 and torch.cuda.is_available()
 
     @property
-    def use_dp(self):
+    def use_dp(self) -> bool:
         return self._distrib_type == DistributedType.DP
 
     @property
-    def use_ddp(self):
+    def use_ddp(self) -> bool:
         return self._distrib_type in (
             DistributedType.DDP, DistributedType.DDP_SPAWN, DistributedType.DDP_SHARDED,
             DistributedType.DDP_SHARDED_SPAWN
         )
 
     @property
-    def use_ddp2(self):
+    def use_ddp2(self) -> bool:
         return self._distrib_type == DistributedType.DDP2
 
     @property
-    def use_horovod(self):
+    def use_horovod(self) -> bool:
         return self._distrib_type == DistributedType.HOROVOD
+
+    @property
+    def is_distributed(self) -> bool:
+        is_distributed = self.use_ddp or self.use_ddp2 or self.use_horovod
+        if self.on_tpu:
+            is_distributed |= self.training_type_plugin.is_distributed
+        return is_distributed
 
     @property
     def num_gpus(self) -> int:
@@ -265,7 +269,7 @@ class BackendConnector(object):
         return len(gpus)
 
     @property
-    def parallel_devices(self):
+    def parallel_devices(self) -> Union[List[torch.device], int]:
         if self.on_gpu:
             devices = [torch.device("cuda", i) for i in self.parallel_device_ids]
         elif self.on_tpu:
@@ -277,15 +281,15 @@ class BackendConnector(object):
         return devices
 
     @property
-    def root_gpu(self) -> int:
-        return self.accelerator.root_device.index
+    def root_gpu(self) -> Optional[int]:
+        return self.accelerator.root_device.index if not isinstance(self.accelerator, TPUAccelerator) else None
 
     @property
-    def is_using_torchelastic(self):
+    def is_using_torchelastic(self) -> bool:
         te_flags_passed = "WORLD_SIZE" in os.environ and ("GROUP_RANK" in os.environ or "NODE_RANK" in os.environ)
         return te_flags_passed
 
-    def select_precision_plugin(self):
+    def select_precision_plugin(self) -> PrecisionPlugin:
         if self.precision == 32:
             self.amp_type = None
             return PrecisionPlugin()
@@ -335,7 +339,7 @@ class BackendConnector(object):
         else:
             raise NotImplementedError("We only support precisions 32 and 16!")
 
-    def select_training_type_plugin(self):
+    def select_training_type_plugin(self) -> TrainingTypePlugin:
         if self.use_ddp2:
             plugin = DDP2Plugin(parallel_devices=self.parallel_devices, cluster_environment=self.cluster_environment)
         elif self.use_ddp:
@@ -377,7 +381,10 @@ class BackendConnector(object):
         elif self.use_horovod:
             plugin = HorovodPlugin(parallel_devices=self.parallel_devices)
         elif self.on_tpu:
-            plugin = SingleTPUPlugin(self.tpu_id)
+            if isinstance(self.tpu_cores, list):
+                plugin = SingleTPUPlugin(self.tpu_id)
+            else:
+                plugin = TPUSpawnPlugin(parallel_devices=list(range(self.tpu_cores)))
         else:
             single_gpu_ordinal = device_parser.determine_root_gpu_device(self.parallel_device_ids)
             plugin = SingleDevicePlugin(device=torch.device(f"cuda:{single_gpu_ordinal}" if self.on_gpu else "cpu"))
@@ -398,14 +405,14 @@ class BackendConnector(object):
 
         return training_type
 
-    def select_accelerator(self):
+    def select_accelerator(self) -> Accelerator:
         if isinstance(self.distributed_backend, Accelerator):
             # custom accelerator from user
             if self._precision_plugin is not None or self._training_type_plugin is not None:
                 # plugins also specified by user
                 rank_zero_warn(
-                    'Specified Precision and TrainingType Plugins will be ignored, '
-                    'since an Accelerator instance was provided'
+                    'Specified `Precision` and `TrainingType` plugins will be ignored,'
+                    ' since an `Accelerator` instance was provided.'
                 )
             return self.distributed_backend
 
@@ -426,6 +433,9 @@ class BackendConnector(object):
             return self._cluster_environment
         if self.is_slurm_managing_tasks:
             env = SLURMEnvironment()
+            # TODO: decouple DDP from SLURM
+            #   refactor and let generic cluster env hold the information about who spawns the processes
+            os.environ["PL_IN_DDP_SUBPROCESS"] = "1"
         elif self.is_using_torchelastic:
             env = TorchElasticEnvironment()
         else:
@@ -466,7 +476,6 @@ class BackendConnector(object):
         # special case with TPUs
         elif self.distributed_backend == 'tpu':
             self._device_type = DeviceType.TPU
-        # set all other requested distrib. types and if it was not set in the
         elif self.distributed_backend and self._distrib_type is None:
             self._distrib_type = DistributedType(self.distributed_backend)
 
@@ -544,7 +553,7 @@ class BackendConnector(object):
             )
 
     @staticmethod
-    def has_horovodrun():
+    def has_horovodrun() -> bool:
         """Returns True if running with `horovodrun` using Gloo or OpenMPI."""
         return "OMPI_COMM_WORLD_RANK" in os.environ or "HOROVOD_RANK" in os.environ
 
