@@ -41,6 +41,7 @@ from pytorch_lightning.plugins import (
     TrainingTypePlugin,
 )
 from pytorch_lightning.plugins.environments import ClusterEnvironment, SLURMEnvironment, TorchElasticEnvironment
+from pytorch_lightning.plugins.environments.default_environment import DefaultEnvironment
 from pytorch_lightning.tuner.auto_gpu_select import pick_multiple_gpus
 from pytorch_lightning.utilities import (
     _APEX_AVAILABLE,
@@ -428,7 +429,7 @@ class BackendConnector(object):
             training_type_plugin=self.training_type_plugin,
         )
 
-    def select_cluster_environment(self):
+    def select_cluster_environment(self) -> ClusterEnvironment:
         if self._cluster_environment is not None:
             return self._cluster_environment
         if self.is_slurm_managing_tasks:
