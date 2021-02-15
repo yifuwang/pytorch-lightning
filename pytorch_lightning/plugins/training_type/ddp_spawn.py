@@ -82,7 +82,7 @@ class DDPSpawnPlugin(ParallelPlugin):
     def setup(self, model):
         self._model = model
 
-        os.environ["MASTER_PORT"] = os.environ.get("MASTER_PORT", str(find_free_network_port()))
+        os.environ["MASTER_PORT"] = str(self.cluster_environment.master_port())
 
         # pass in a state q
         smp = mp.get_context("spawn")

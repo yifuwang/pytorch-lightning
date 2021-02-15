@@ -27,10 +27,9 @@ from pytorch_lightning import _logger as log
 from pytorch_lightning.distributed import LightningDistributed
 from pytorch_lightning.overrides import LightningDistributedModule
 from pytorch_lightning.overrides.distributed import prepare_for_backward
-from pytorch_lightning.plugins.environments import SLURMEnvironment, TorchElasticEnvironment
 from pytorch_lightning.plugins.environments.cluster_environment import ClusterEnvironment
 from pytorch_lightning.plugins.training_type.parallel import ParallelPlugin
-from pytorch_lightning.utilities import _HYDRA_AVAILABLE, _TORCH_GREATER_EQUAL_1_7, rank_zero_warn
+from pytorch_lightning.utilities import _HYDRA_AVAILABLE, _PYTORCH_GREATER_EQUAL_1_7_0, rank_zero_warn
 from pytorch_lightning.utilities.distributed import (
     find_free_network_port,
     rank_zero_only,
@@ -88,8 +87,7 @@ class DDPPlugin(ParallelPlugin):
         self._model = model
 
         # start the other scripts
-        # TODO: refactor and let generic cluster env hold the information about who spawns the processes
-        if os.environ.get("PL_IN_DDP_SUBPROCESS", "0") != "1":
+        if not self.cluster_environment.spawns_children() and os.environ.get("PL_IN_DDP_SUBPROCESS", "0") != "1":
             self._call_children_scripts()
 
         # set the task idx
@@ -103,15 +101,12 @@ class DDPPlugin(ParallelPlugin):
         self._has_spawned_children = True
 
         # DDP Environment variables
-        os.environ["MASTER_ADDR"] = os.environ.get("MASTER_ADDR", "127.0.0.1")
-        os.environ["MASTER_PORT"] = os.environ.get("MASTER_PORT", str(find_free_network_port()))
+        os.environ["MASTER_ADDR"] = self.cluster_environment.master_address()
+        os.environ["MASTER_PORT"] = str(self.cluster_environment.master_port())
 
         # allow the user to pass the node rank
-        node_rank = "0"
-        node_rank = os.environ.get("NODE_RANK", node_rank)
-        node_rank = os.environ.get("GROUP_RANK", node_rank)
-        os.environ["NODE_RANK"] = node_rank
-        os.environ["LOCAL_RANK"] = "0"
+        os.environ["NODE_RANK"] = str(self.cluster_environment.node_rank())
+        os.environ["LOCAL_RANK"] = str(self.cluster_environment.local_rank())
 
         # when user is using hydra find the absolute path
         path_lib = os.path.abspath if not _HYDRA_AVAILABLE else to_absolute_path
@@ -205,7 +200,6 @@ class DDPPlugin(ParallelPlugin):
         return [self.root_device.index]
 
     def init_ddp_connection(self, global_rank: int, world_size: int) -> None:
-        # TODO: From where to get cluster environment?
         os.environ["MASTER_ADDR"] = str(self.cluster_environment.master_address())
         os.environ["MASTER_PORT"] = str(self.cluster_environment.master_port())
         os.environ["WORLD_SIZE"] = str(self.cluster_environment.world_size())

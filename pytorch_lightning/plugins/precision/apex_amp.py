@@ -92,6 +92,15 @@ class ApexMixedPrecisionPlugin(MixedPrecisionPlugin):
         closure_loss = closure_loss.detach()
         return closure_loss
 
+    def pre_optimizer_step(
+        self, pl_module: LightningModule, optimizer: Optimizer, optimizer_idx: int, closure: Callable, **kwargs
+    ) -> bool:
+        """Hook to do something before each optimizer step."""
+        # Apex: Amp does not support closure use with optimizers
+        closure()
+        optimizer.step()
+        return False
+
     def configure_apex(
         self,
         amp: object,

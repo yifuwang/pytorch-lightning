@@ -30,6 +30,9 @@ from pytorch_lightning.utilities.apply_func import move_data_to_device
 from pytorch_lightning.utilities.distributed import all_gather_ddp_if_available
 from pytorch_lightning.utilities.enums import AMPType, LightningEnum
 
+if TYPE_CHECKING:
+    from pytorch_lightning.trainer.trainer import Trainer
+
 
 class Accelerator(object):
     """

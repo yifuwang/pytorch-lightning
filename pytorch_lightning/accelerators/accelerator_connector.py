@@ -428,7 +428,7 @@ class BackendConnector(object):
             training_type_plugin=self.training_type_plugin,
         )
 
-    def select_cluster_environment(self) -> ClusterEnvironment:
+    def select_cluster_environment(self):
         if self._cluster_environment is not None:
             return self._cluster_environment
         if self.is_slurm_managing_tasks:
@@ -438,12 +438,8 @@ class BackendConnector(object):
             os.environ["PL_IN_DDP_SUBPROCESS"] = "1"
         elif self.is_using_torchelastic:
             env = TorchElasticEnvironment()
-            # TODO: decouple DDP from TE
-            #   refactor and let generic cluster env hold the information about who spawns the processes
-            os.environ["PL_IN_DDP_SUBPROCESS"] = "1"
         else:
-            # TODO: maybe introduce a DefaultEnvironment?
-            env = TorchElasticEnvironment()
+            env = DefaultEnvironment()
         return env
 
     def set_distributed_mode(self, distributed_backend: Optional[str] = None):

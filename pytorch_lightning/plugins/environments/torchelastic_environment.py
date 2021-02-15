@@ -24,6 +24,9 @@ class TorchElasticEnvironment(ClusterEnvironment):
     def __init__(self):
         super().__init__()
 
+    def spawns_children(self) -> bool:
+        return True
+
     def master_address(self):
         if "MASTER_ADDR" not in os.environ:
             rank_zero_warn("MASTER_ADDR environment variable is not defined. Set as localhost")

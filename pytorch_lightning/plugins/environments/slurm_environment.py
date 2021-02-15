@@ -24,6 +24,9 @@ class SLURMEnvironment(ClusterEnvironment):
     def __init__(self):
         super().__init__()
 
+    def spawns_children(self) -> bool:
+        return True
+
     def master_address(self):
         # figure out the root node addr
         slurm_nodelist = os.environ.get("SLURM_NODELIST")
@@ -65,7 +68,7 @@ class SLURMEnvironment(ClusterEnvironment):
         return default_port
 
     def world_size(self):
-        return self._world_size
+        return None
 
     def local_rank(self):
         return int(os.environ['SLURM_LOCALID'])
