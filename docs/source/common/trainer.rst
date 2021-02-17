@@ -1115,14 +1115,6 @@ Useful for quickly debugging or trying to overfit on purpose.
 plugins
 ^^^^^^^
 
-.. raw:: html
-
-    <video width="50%" max-width="400px" controls
-    poster="https://pl-bolts-doc-images.s3.us-east-2.amazonaws.com/pl_docs/trainer_flags/thumb/cluster_environment.jpg"
-    src="https://pl-bolts-doc-images.s3.us-east-2.amazonaws.com/pl_docs/trainer_flags/cluster_environment.mp4"></video>
-
-|
-
 Plugins allow you to connect arbitrary backends, precision libraries, SLURM, etc... For example:
 
 - DDP
