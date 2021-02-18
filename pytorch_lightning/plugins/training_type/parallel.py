@@ -24,7 +24,6 @@ from pytorch_lightning.core.lightning import LightningModule
 from pytorch_lightning.overrides.base import unwrap_lightning_module
 from pytorch_lightning.plugins.environments.cluster_environment import ClusterEnvironment
 from pytorch_lightning.plugins.training_type.training_type_plugin import TrainingTypePlugin
-from pytorch_lightning.utilities import rank_zero_info
 from pytorch_lightning.utilities.distributed import all_gather_ddp_if_available, ReduceOp
 
 
@@ -36,10 +35,26 @@ class ParallelPlugin(TrainingTypePlugin, ABC):
         cluster_environment: Optional[ClusterEnvironment] = None,
     ):
         super().__init__()
-        self.parallel_devices = parallel_devices
+        self._parallel_devices = parallel_devices
+        self._cluster_environment = cluster_environment
         self.world_size = 1
         self.local_rank = 0
-        self.cluster_environment = cluster_environment
+
+    @property
+    def parallel_devices(self):
+        return self._parallel_devices
+
+    @parallel_devices.setter
+    def parallel_devices(self, devices: List[torch.device]):
+        self._parallel_devices = devices
+
+    @property
+    def cluster_environment(self):
+        return self._cluster_environment
+
+    @cluster_environment.setter
+    def cluster_environment(self, environment: ClusterEnvironment):
+        self._cluster_environment = environment
 
     @property
     def cluster_local_rank(self):
