@@ -78,7 +78,6 @@ jobs:
 
     - script: |
         python -m coverage run --source pytorch_lightning -m pytest pytorch_lightning tests -v --durations=50
-
       displayName: 'Testing: standard'
 
     - bash: |
