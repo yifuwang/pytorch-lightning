@@ -31,7 +31,6 @@ from pytorch_lightning.utilities import _TORCH_GREATER_EQUAL_1_7
 from pytorch_lightning.utilities.cloud_io import atomic_save
 from pytorch_lightning.utilities.cloud_io import load as pl_load
 from pytorch_lightning.utilities.distributed import (
-    find_free_network_port,
     rank_zero_only,
     rank_zero_warn,
     ReduceOp,
