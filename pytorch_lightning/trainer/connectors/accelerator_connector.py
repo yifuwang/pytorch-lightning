@@ -443,14 +443,11 @@ class AcceleratorConnector(object):
             training_type_plugin=self.training_type_plugin,
         )
 
-    def select_cluster_environment(self):
+    def select_cluster_environment(self) -> ClusterEnvironment:
         if self._cluster_environment is not None:
             return self._cluster_environment
         if self.is_slurm_managing_tasks:
             env = SLURMEnvironment()
-            # TODO: decouple DDP from SLURM
-            #   refactor and let generic cluster env hold the information about who spawns the processes
-            os.environ["PL_IN_DDP_SUBPROCESS"] = "1"
         elif self.is_using_torchelastic:
             env = TorchElasticEnvironment()
         else:
