@@ -33,7 +33,6 @@ class DefaultEnvironment(ClusterEnvironment):
 
     def __init__(self):
         super().__init__()
-        self._world_size = None
 
     def spawns_children(self) -> bool:
         return False
