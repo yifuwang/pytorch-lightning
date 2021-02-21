@@ -33,6 +33,7 @@ class DefaultEnvironment(ClusterEnvironment):
 
     def __init__(self):
         super().__init__()
+        self._master_port = None
 
     def spawns_children(self) -> bool:
         return False
@@ -41,7 +42,10 @@ class DefaultEnvironment(ClusterEnvironment):
         return os.environ.get("MASTER_ADDR", "127.0.0.1")
 
     def master_port(self) -> int:
-        return int(os.environ.get("MASTER_PORT", find_free_network_port()))
+        master_port = os.environ.get("MASTER_PORT", self._master_port)
+        master_port = master_port or find_free_network_port()
+        self._master_port = master_port
+        return int(master_port)
 
     def world_size(self) -> Optional[int]:
         return None
