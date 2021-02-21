@@ -40,3 +40,13 @@ def test_node_rank_from_group_rank():
     env = DefaultEnvironment()
     assert "NODE_RANK" not in os.environ
     assert env.node_rank() == 1
+
+
+@mock.patch.dict(os.environ, {})
+def test_random_master_port():
+    """ Test randomly chosen master port when no master port was given by user. """
+    env = DefaultEnvironment()
+    port = env.master_port()
+    assert isinstance(port, int)
+    # repeated calls do not generate a new port number
+    assert env.master_port() == port
