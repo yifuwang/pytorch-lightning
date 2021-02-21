@@ -30,7 +30,7 @@ def test_default_attributes():
     "SLURM_NODEID": "3",
 })
 def test_attributes_from_environment_variables():
-    """ Test that the torchelastic cluster environment takes the attributes from the environment variables. """
+    """ Test that the SLURM cluster environment takes the attributes from the environment variables. """
     env = SLURMEnvironment()
     assert env.master_address() == "1.1.1.1"
     assert env.master_port() == 15000 + 1234
@@ -45,6 +45,7 @@ def test_attributes_from_environment_variables():
     ("1.2.3.[100-110]", "1.2.3.100")
 ])
 def test_master_address_from_slurm_node_list(slurm_node_list, expected):
+    """ Test extracting the master node from different formats for the SLURM_NODELIST. """
     with mock.patch.dict(os.environ, {"SLURM_NODELIST": slurm_node_list}):
         env = SLURMEnvironment()
         assert env.master_address() == expected
