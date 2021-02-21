@@ -31,8 +31,7 @@ from pytorch_lightning.plugins import (
     PrecisionPlugin,
     SingleDevicePlugin,
 )
-from pytorch_lightning.plugins.environments import SLURMEnvironment, TorchElasticEnvironment
-from pytorch_lightning.plugins.environments.default_environment import DefaultEnvironment
+from pytorch_lightning.plugins.environments import DefaultEnvironment, SLURMEnvironment, TorchElasticEnvironment
 from tests.helpers.boring_model import BoringModel
 
 
