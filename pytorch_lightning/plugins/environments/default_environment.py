@@ -13,10 +13,10 @@
 # limitations under the License.
 
 import os
+import socket
 from typing import Optional
 
 from pytorch_lightning.plugins.environments.cluster_environment import ClusterEnvironment
-from pytorch_lightning.utilities.distributed import find_free_network_port
 
 
 class DefaultEnvironment(ClusterEnvironment):
@@ -56,3 +56,17 @@ class DefaultEnvironment(ClusterEnvironment):
     def node_rank(self) -> int:
         group_rank = os.environ.get("GROUP_RANK", 0)
         return int(os.environ.get("NODE_RANK", group_rank))
+
+
+def find_free_network_port() -> int:
+    """
+    Finds a free port on localhost.
+    It is useful in single-node training when we don't want to connect to a real master node but
+    have to set the `MASTER_PORT` environment variable.
+    """
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind(("", 0))
+    s.listen(1)
+    port = s.getsockname()[1]
+    s.close()
+    return port
