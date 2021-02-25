@@ -21,6 +21,8 @@ from torch.nn import functional as F
 import pytorch_lightning as pl
 from pl_examples import cli_lightning_logo
 from pl_examples.basic_examples.mnist_datamodule import MNISTDataModule
+from pytorch_lightning import Trainer
+from pytorch_lightning.plugins.training_type.ddp import DDPPlugin
 
 
 class LitClassifier(pl.LightningModule):
@@ -99,7 +101,13 @@ def cli_main():
     # ------------
     # training
     # ------------
-    trainer = pl.Trainer.from_argparse_args(args)
+    trainer = Trainer(
+        max_epochs=1,
+        gpus=0,
+        accelerator="ddp_cpu",
+        num_processes=4,
+        plugins=[DDPPlugin(find_unused_parameters=True)],
+    )
     trainer.fit(model, datamodule=dm)
 
     # ------------
