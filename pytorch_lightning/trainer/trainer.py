@@ -291,9 +291,6 @@ class Trainer(
         super().__init__()
         self._running_stage = None
 
-        import os
-        print(os.environ)
-
         distributed_backend = distributed_backend or accelerator
 
         # init connectors
