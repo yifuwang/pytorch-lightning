@@ -15,7 +15,7 @@
 set -e
 export PL_RUNNING_SPECIAL_TESTS=1
 DEFAULTS="-m coverage run --source pytorch_lightning -a -m pytest --verbose --capture=no"
-python ${DEFAULTS} tests/accelerator/test_accelerator_connector.py::test_accelerator_choice_ddp_cpu_custom_plugin
+# python ${DEFAULTS} tests/accelerator/test_accelerator_connector.py::test_accelerator_choice_ddp_cpu_custom_plugin
 python ${DEFAULTS} tests/trainer/optimization/test_manual_optimization.py::test_step_with_optimizer_closure_with_different_frequencies_ddp
 python ${DEFAULTS} tests/models/test_sync_batchnorm.py::test_sync_batchnorm_ddp
 python ${DEFAULTS} tests/plugins/test_deepspeed_plugin.py::test_deepspeed_multigpu
