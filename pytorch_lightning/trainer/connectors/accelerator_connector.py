@@ -44,7 +44,7 @@ from pytorch_lightning.plugins import (
 )
 from pytorch_lightning.plugins.environments import (
     ClusterEnvironment,
-    DefaultEnvironment,
+    LightningEnvironment,
     SLURMEnvironment,
     TorchElasticEnvironment,
 )
@@ -457,7 +457,7 @@ class AcceleratorConnector(object):
         elif self.is_using_torchelastic:
             env = TorchElasticEnvironment()
         else:
-            env = DefaultEnvironment()
+            env = LightningEnvironment()
         return env
 
     def set_distributed_mode(self, distributed_backend: Optional[str] = None):

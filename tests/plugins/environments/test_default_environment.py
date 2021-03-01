@@ -1,13 +1,13 @@
 import os
 from unittest import mock
 
-from pytorch_lightning.plugins.environments import DefaultEnvironment
+from pytorch_lightning.plugins.environments import LightningEnvironment
 
 
 @mock.patch.dict(os.environ, {})
 def test_default_attributes():
     """ Test the default attributes when no environment variables are set. """
-    env = DefaultEnvironment()
+    env = LightningEnvironment()
     assert not env.spawns_children()
     assert env.master_address() == "127.0.0.1"
     assert isinstance(env.master_port(), int)
@@ -24,7 +24,7 @@ def test_default_attributes():
 })
 def test_attributes_from_environment_variables():
     """ Test that the default cluster environment takes the attributes from the environment variables. """
-    env = DefaultEnvironment()
+    env = LightningEnvironment()
     assert env.master_address() == "1.2.3.4"
     assert env.master_port() == 500
     assert env.world_size() is None
@@ -37,7 +37,7 @@ def test_attributes_from_environment_variables():
 })
 def test_node_rank_from_group_rank():
     """ Test that the GROUP_RANK substitutes NODE_RANK. """
-    env = DefaultEnvironment()
+    env = LightningEnvironment()
     assert "NODE_RANK" not in os.environ
     assert env.node_rank() == 1
 
@@ -45,7 +45,7 @@ def test_node_rank_from_group_rank():
 @mock.patch.dict(os.environ, {})
 def test_random_master_port():
     """ Test randomly chosen master port when no master port was given by user. """
-    env = DefaultEnvironment()
+    env = LightningEnvironment()
     port = env.master_port()
     assert isinstance(port, int)
     # repeated calls do not generate a new port number

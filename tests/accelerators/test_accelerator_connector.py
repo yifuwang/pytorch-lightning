@@ -31,7 +31,7 @@ from pytorch_lightning.plugins import (
     PrecisionPlugin,
     SingleDevicePlugin,
 )
-from pytorch_lightning.plugins.environments import DefaultEnvironment, SLURMEnvironment, TorchElasticEnvironment
+from pytorch_lightning.plugins.environments import LightningEnvironment, SLURMEnvironment, TorchElasticEnvironment
 from tests.helpers.boring_model import BoringModel
 
 
@@ -51,7 +51,7 @@ def test_accelerator_choice_ddp_cpu(tmpdir):
     )
     assert isinstance(trainer.accelerator, CPUAccelerator)
     assert isinstance(trainer.training_type_plugin, DDPSpawnPlugin)
-    assert isinstance(trainer.training_type_plugin.cluster_environment, DefaultEnvironment)
+    assert isinstance(trainer.training_type_plugin.cluster_environment, LightningEnvironment)
 
 
 @mock.patch.dict(os.environ, {"CUDA_VISIBLE_DEVICES": "0,1"})
@@ -65,7 +65,7 @@ def test_accelerator_choice_ddp(cuda_available_mock, device_count_mock):
     )
     assert isinstance(trainer.accelerator, GPUAccelerator)
     assert isinstance(trainer.training_type_plugin, DDPPlugin)
-    assert isinstance(trainer.training_type_plugin.cluster_environment, DefaultEnvironment)
+    assert isinstance(trainer.training_type_plugin.cluster_environment, LightningEnvironment)
 
 
 @mock.patch.dict(os.environ, {"CUDA_VISIBLE_DEVICES": "0,1"})
@@ -79,7 +79,7 @@ def test_accelerator_choice_ddp_spawn(cuda_available_mock, device_count_mock):
     )
     assert isinstance(trainer.accelerator, GPUAccelerator)
     assert isinstance(trainer.training_type_plugin, DDPSpawnPlugin)
-    assert isinstance(trainer.training_type_plugin.cluster_environment, DefaultEnvironment)
+    assert isinstance(trainer.training_type_plugin.cluster_environment, LightningEnvironment)
 
 
 @pytest.mark.skipif(torch.cuda.device_count() < 2, reason="test requires multi-GPU machine")
@@ -293,7 +293,7 @@ def test_accelerator_choice_ddp_cpu_custom_cluster(device_count_mock):
     Test that we choose the custom cluster even when SLURM or TE flags are around
     """
 
-    class CustomCluster(DefaultEnvironment):
+    class CustomCluster(LightningEnvironment):
 
         def master_address(self):
             return 'asdf'

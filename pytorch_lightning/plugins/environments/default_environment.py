@@ -19,9 +19,9 @@ from typing import Optional
 from pytorch_lightning.plugins.environments.cluster_environment import ClusterEnvironment
 
 
-class DefaultEnvironment(ClusterEnvironment):
+class LightningEnvironment(ClusterEnvironment):
     """
-    A default environment for a single node or free cluster (not managed).
+    The default environment used by Lightning for a single node or free cluster (not managed).
 
     The master process must be launched by the user and Lightning will spawn new
     worker processes for distributed training, either in a single node or across multiple nodes.

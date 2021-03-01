@@ -20,7 +20,7 @@ import torch.nn.functional as F
 
 from pytorch_lightning import LightningModule, seed_everything, Trainer
 from pytorch_lightning.plugins import DDPSpawnPlugin
-from pytorch_lightning.plugins.environments import DefaultEnvironment
+from pytorch_lightning.plugins.environments import LightningEnvironment
 from pytorch_lightning.trainer.states import TrainerState
 from pytorch_lightning.utilities import FLOAT16_EPSILON
 from tests.helpers.datamodules import MNISTDataModule
@@ -123,7 +123,7 @@ def test_sync_batchnorm_ddp(tmpdir):
                 parallel_devices=[torch.device("cuda", 0), torch.device("cuda", 1)],
                 num_nodes=1,
                 sync_batchnorm=True,
-                cluster_environment=DefaultEnvironment(),
+                cluster_environment=LightningEnvironment(),
                 find_unused_parameters=True
             )
         ]
