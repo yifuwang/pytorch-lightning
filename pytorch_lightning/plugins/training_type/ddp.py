@@ -38,7 +38,6 @@ if _HYDRA_AVAILABLE:
     from hydra.core.hydra_config import HydraConfig
     from hydra.utils import get_original_cwd, to_absolute_path
 
-
 log = logging.getLogger(__name__)
 
 
