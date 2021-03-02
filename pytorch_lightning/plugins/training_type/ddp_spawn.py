@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import logging
 import os
 import re
 from typing import Any, Dict, List, Optional, Union
@@ -21,7 +22,6 @@ import torch.multiprocessing as mp
 from torch.nn.parallel.distributed import DistributedDataParallel
 from torch.optim import Optimizer
 
-from pytorch_lightning import _logger as log
 from pytorch_lightning.distributed.dist import LightningDistributed
 from pytorch_lightning.overrides import LightningDistributedModule
 from pytorch_lightning.overrides.distributed import prepare_for_backward
@@ -32,6 +32,8 @@ from pytorch_lightning.utilities.cloud_io import atomic_save
 from pytorch_lightning.utilities.cloud_io import load as pl_load
 from pytorch_lightning.utilities.distributed import rank_zero_only, rank_zero_warn, ReduceOp, sync_ddp_if_available
 from pytorch_lightning.utilities.seed import seed_everything
+
+log = logging.getLogger(__name__)
 
 
 class DDPSpawnPlugin(ParallelPlugin):
