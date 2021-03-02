@@ -42,10 +42,9 @@ class LightningEnvironment(ClusterEnvironment):
         return os.environ.get("MASTER_ADDR", "127.0.0.1")
 
     def master_port(self) -> int:
-        master_port = os.environ.get("MASTER_PORT", self._master_port)
-        master_port = master_port or find_free_network_port()
-        self._master_port = master_port
-        return int(master_port)
+        if self._master_port is None:
+            self._master_port = os.environ.get("MASTER_PORT", find_free_network_port())
+        return int(self._master_port)
 
     def world_size(self) -> Optional[int]:
         return None
