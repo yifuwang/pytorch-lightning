@@ -8,7 +8,7 @@ from pytorch_lightning.plugins.environments import LightningEnvironment
 def test_default_attributes():
     """ Test the default attributes when no environment variables are set. """
     env = LightningEnvironment()
-    assert not env.spawns_children()
+    assert not env.creates_children()
     assert env.master_address() == "127.0.0.1"
     assert isinstance(env.master_port(), int)
     assert env.world_size() is None

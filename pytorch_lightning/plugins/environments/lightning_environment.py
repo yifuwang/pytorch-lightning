@@ -35,7 +35,7 @@ class LightningEnvironment(ClusterEnvironment):
         super().__init__()
         self._master_port = None
 
-    def spawns_children(self) -> bool:
+    def creates_children(self) -> bool:
         return False
 
     def master_address(self) -> str:

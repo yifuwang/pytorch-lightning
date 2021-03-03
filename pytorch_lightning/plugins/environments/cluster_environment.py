@@ -19,8 +19,8 @@ class ClusterEnvironment(ABC):
     """ Specification of a cluster environment. """
 
     @abstractmethod
-    def spawns_children(self) -> bool:
-        """ Whether the environment spawns the subprocesses or not. """
+    def creates_children(self) -> bool:
+        """ Whether the environment creates the subprocesses or not. """
 
     @abstractmethod
     def master_address(self) -> str:

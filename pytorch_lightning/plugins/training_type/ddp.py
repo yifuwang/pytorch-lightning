@@ -84,7 +84,7 @@ class DDPPlugin(ParallelPlugin):
         self._model = model
 
         # start the other scripts
-        if not self.cluster_environment.spawns_children() and os.environ.get("PL_IN_DDP_SUBPROCESS", "0") != "1":
+        if not self.cluster_environment.creates_children() and os.environ.get("PL_IN_DDP_SUBPROCESS", "0") != "1":
             self._call_children_scripts()
 
         # set the task idx

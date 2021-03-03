@@ -27,7 +27,7 @@ class TorchElasticEnvironment(ClusterEnvironment):
     def __init__(self):
         super().__init__()
 
-    def spawns_children(self) -> bool:
+    def creates_children(self) -> bool:
         return True
 
     def master_address(self) -> str:

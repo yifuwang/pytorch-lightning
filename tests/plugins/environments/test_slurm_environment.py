@@ -10,7 +10,7 @@ from pytorch_lightning.plugins.environments import SLURMEnvironment
 def test_default_attributes():
     """ Test the default attributes when no environment variables are set. """
     env = SLURMEnvironment()
-    assert env.spawns_children()
+    assert env.creates_children()
     assert env.master_address() == "127.0.0.1"
     assert env.master_port() == 12910
     assert env.world_size() is None
