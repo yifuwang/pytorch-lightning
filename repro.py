@@ -29,11 +29,12 @@ class Model(pl.LightningModule):
         self.manual_backward(loss, opt)
         opt.step()
         opt.zero_grad()
+        print("after zero grad")
 
 
 if __name__ == '__main__':
     train_ds = datasets.CIFAR10(
-        root='/data',
+        root='data',
         train=True,
         download=True,
         transform=torchvision.transforms.Compose([
