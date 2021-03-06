@@ -16,16 +16,26 @@ from typing import List, Optional
 import torch
 from torch.nn import DataParallel
 
+from pytorch_lightning.core.lightning import LightningModule
 from pytorch_lightning.core.step_result import Result
 from pytorch_lightning.overrides.data_parallel import LightningParallelModule
 from pytorch_lightning.plugins.training_type.parallel import ParallelPlugin
 from pytorch_lightning.utilities.apply_func import apply_to_collection
+from pytorch_lightning.utilities.exceptions import MisconfigurationException
 
 
 class DataParallelPlugin(ParallelPlugin):
 
-    def __init__(self, parallel_devices: Optional[List[torch.device]]):
+    def __init__(self, parallel_devices: Optional[List[torch.device]] = None):
         super().__init__(parallel_devices=parallel_devices, cluster_environment=None)
+
+    def connect(self, model: LightningModule, *args, **kwargs):
+        if not model.automatic_optimization:
+            raise MisconfigurationException(
+                "Manual optimization with data-parallel is not supported."
+                " Choose a different plugin/backend, e.g., `accelerator=ddp`."
+            )
+        super().connect(model, *args, **kwargs)
 
     def setup(self, model):
         # model needs to be moved to the device before it is wrapped

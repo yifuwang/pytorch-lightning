@@ -11,14 +11,21 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import os
+from unittest import mock
+
+import pytest
 import torch
 import torch.nn.functional as F
 
 import pytorch_lightning as pl
 import tests.helpers.pipelines as tpipes
 import tests.helpers.utils as tutils
+from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping
 from pytorch_lightning.core import memory
+from pytorch_lightning.plugins import DataParallelPlugin
+from pytorch_lightning.utilities.exceptions import MisconfigurationException
 from tests.helpers import BoringModel
 from tests.helpers.datamodules import ClassifDataModule
 from tests.helpers.runif import RunIf
@@ -142,3 +149,18 @@ def test_dp_training_step_dict(tmpdir):
         accelerator='dp',
     )
     trainer.fit(model)
+
+
+@RunIf(min_gpus=2)
+def test_dp_and_manual_optimization_raises(tmpdir):
+    model = BoringModel()
+    model.automatic_optimization = False
+    trainer = Trainer(
+        default_root_dir=tmpdir,
+        fast_dev_run=True,
+        gpus=2,
+        plugins=[DataParallelPlugin()],
+        accelerator="dp",
+    )
+    with pytest.raises(MisconfigurationException, match="Manual optimization with data-parallel is not supported"):
+        trainer.fit(model)
