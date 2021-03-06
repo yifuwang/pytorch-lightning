@@ -274,6 +274,8 @@ For a deeper understanding of what Lightning is doing, feel free to read this
 
 
 
+.. _Data Parallel:
+
 Data Parallel
 ^^^^^^^^^^^^^
 :class:`~torch.nn.DataParallel` (DP) splits a batch across k GPUs.

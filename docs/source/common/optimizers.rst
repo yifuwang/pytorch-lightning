@@ -45,6 +45,8 @@ to manually manage the optimization process. To do so, do the following:
 
 .. warning:: Before 1.2, ``optimzer.step`` was calling ``optimizer.zero_grad()`` internally. From 1.2, it is left to the users expertize.
 
+.. warning:: Manual optimization is not supported with :ref:`Data Parallel`, i.e., setting ``accelerator="dp"`` in the Trainer will raise an error.
+
 .. tip:: To perform ``accumulate_grad_batches`` with one optimizer, you can do as such.
 
 .. tip:: ``self.optimizers()`` will return ``LightningOptimizer`` objects. You can access your own optimizer with ``optimizer.optimizer``. However, if you use your own optimizer to perform a step, Lightning won't be able to support accelerators and precision for you.
