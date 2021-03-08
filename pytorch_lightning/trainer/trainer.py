@@ -1094,3 +1094,22 @@ class Trainer(
         if not skip:
             self._cache_logged_metrics()
         return output
+
+    def multi_print(self, *args, **kwargs):
+        """
+        This is useful to inspect multi-processed behaviour
+        """
+        if torch.distributed.is_initialized():
+            colors = {0: "\033[0;92m", 1: "\033[0;94m"}
+            import os
+            rank = os.getenv("LOCAL_RANK")
+            rank = int(rank) if rank is not None else 0
+            _args = ""
+            _kwargs = ""
+            for v in args:
+                _args += f"{v} "
+            for k, v in kwargs.items():
+                _kwargs += f"{k}:{v} "
+            print(f"{colors[rank]} rank: {rank} {_args[:-1]} {_kwargs[:-1]} \033[0m")
+        else:
+            print(*args, **kwargs)

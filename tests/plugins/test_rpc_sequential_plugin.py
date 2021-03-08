@@ -37,7 +37,7 @@ def test_rpc_sequential_plugin_manual(tmpdir, args=None):
         limit_test_batches=2,
         gpus=2,
         distributed_backend="ddp",
-        plugins=[RPCSequentialPlugin(balance=[2, 1], rpc_timeout_sec=5 * 60)],
+        plugins=[RPCSequentialPlugin(balance=[2, 1], rpc_timeout_sec=60)],
     )
 
     trainer.fit(model)

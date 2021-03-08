@@ -189,7 +189,9 @@ class ModelCheckpoint(Callback):
         """
         checkpoints can be saved at the end of the val loop
         """
+        trainer.multi_print("enter on_validation_end")
         self.save_checkpoint(trainer)
+        trainer.multi_print("exit on_validation_end")
 
     def on_save_checkpoint(self, trainer, pl_module, checkpoint: Dict[str, Any]) -> Dict[str, Any]:
         return {
@@ -326,7 +328,7 @@ class ModelCheckpoint(Callback):
         else:
             raise ValueError(".save_function() not set")
 
-    def check_monitor_top_k(self, current: torch.Tensor) -> bool:
+    def check_monitor_top_k(self, trainer: 'Trainer', current: torch.Tensor) -> bool:
         if current is None:
             return False
 
@@ -346,7 +348,11 @@ class ModelCheckpoint(Callback):
             current = torch.tensor(current)
 
         monitor_op = {"min": torch.lt, "max": torch.gt}[self.mode]
-        return monitor_op(current, self.best_k_models[self.kth_best_model_path]).item()
+        decision = monitor_op(current, self.best_k_models[self.kth_best_model_path]).item()
+        trainer.multi_print("decision", decision)
+        decision = trainer.training_type_plugin.reduce_early_stopping_decision(decision)
+        trainer.multi_print("decision", decision)
+        return decision
 
     @classmethod
     def _format_checkpoint_name(
@@ -528,15 +534,9 @@ class ModelCheckpoint(Callback):
         epoch = monitor_candidates.get("epoch")
         step = monitor_candidates.get("step")
 
-        # when `val_loss` is being logged and no ModelCheckpoint is being provided
-        # `val_loss` will be selected for monitor and need to be reduced to
-        # prevent processes divergence
-        # TODO: Move this logic to logger_connector. This also needs to be fixed for any
-        # other monitor logged value which aren't produced from a Metric.
-        if self.monitor == "val_loss":
-            current = trainer.training_type_plugin.reduce(current, reduce_op="mean")
+        trainer.multi_print(current)
 
-        if self.check_monitor_top_k(current):
+        if self.check_monitor_top_k(trainer, current):
             self._update_best_and_save(current, epoch, step, trainer, monitor_candidates)
         elif self.verbose:
             rank_zero_info(f"Epoch {epoch:d}, step {step:d}: {self.monitor} was not in top {self.save_top_k}")
@@ -623,5 +623,7 @@ class ModelCheckpoint(Callback):
         the internal state to diverge between ranks.
         """
         exists = self._fs.exists(filepath)
+        trainer.multi_print("enter file_exists", filepath, exists)
         exists = trainer.training_type_plugin.broadcast(exists)
+        trainer.multi_print("exit file_exists", filepath, exists)
         return exists
