@@ -31,7 +31,7 @@ class Precision(StatScores):
 
     The reduction method (how the precision scores are aggregated) is controlled by the
     ``average`` parameter, and additionally by the ``mdmc_average`` parameter in the
-    multi-dimensional multi-class case. Accepts all inputs listed in :ref:`extensions/metrics:input types`.
+    multi-dimensional multi-class case.
 
     Args:
         num_classes:
@@ -67,11 +67,9 @@ class Precision(StatScores):
             - ``'samplewise'``: In this case, the statistics are computed separately for each
               sample on the ``N`` axis, and then averaged over samples.
               The computation for each sample is done by treating the flattened extra axes ``...``
-              (see :ref:`extensions/metrics:input types`) as the ``N`` dimension within the sample,
-              and computing the metric for the sample based on that.
+              as the ``N`` dimension within the sample, and computing the metric for the sample based on that.
 
             - ``'global'``: In this case the ``N`` and ``...`` dimensions of the inputs
-              (see :ref:`extensions/metrics:input types`)
               are flattened into a new ``N_X`` sample axis, i.e. the inputs are treated as if they
               were ``(N_X, C)``. From here on the ``average`` parameter applies as usual.
 
@@ -89,9 +87,7 @@ class Precision(StatScores):
             Should be left unset (``None``) for inputs with label predictions.
         is_multiclass:
             Used only in certain special cases, where you want to treat inputs as a different type
-            than what they appear to be. See the parameter's
-            :ref:`documentation section <extensions/metrics:using the is_multiclass parameter>`
-            for a more detailed explanation and examples.
+            than what they appear to be.
 
         compute_on_step:
             Forward only calls ``update()`` and return ``None`` if this is set to ``False``.
@@ -104,6 +100,10 @@ class Precision(StatScores):
         dist_sync_fn:
             Callback that performs the allgather operation on the metric state. When ``None``, DDP
             will be used to perform the allgather.
+
+    Raises:
+        ValueError:
+            If ``average`` is none of ``"micro"``, ``"macro"``, ``"weighted"``, ``"samples"``, ``"none"``, ``None``.
 
     Example:
 
@@ -181,7 +181,7 @@ class Recall(StatScores):
 
     The reduction method (how the recall scores are aggregated) is controlled by the
     ``average`` parameter, and additionally by the ``mdmc_average`` parameter in the
-    multi-dimensional multi-class case. Accepts all inputs listed in :ref:`extensions/metrics:input types`.
+    multi-dimensional multi-class case.
 
     Args:
         num_classes:
@@ -217,11 +217,9 @@ class Recall(StatScores):
             - ``'samplewise'``: In this case, the statistics are computed separately for each
               sample on the ``N`` axis, and then averaged over samples.
               The computation for each sample is done by treating the flattened extra axes ``...``
-              (see :ref:`extensions/metrics:input types`) as the ``N`` dimension within the sample,
-              and computing the metric for the sample based on that.
+              as the ``N`` dimension within the sample, and computing the metric for the sample based on that.
 
             - ``'global'``: In this case the ``N`` and ``...`` dimensions of the inputs
-              (see :ref:`extensions/metrics:input types`)
               are flattened into a new ``N_X`` sample axis, i.e. the inputs are treated as if they
               were ``(N_X, C)``. From here on the ``average`` parameter applies as usual.
 
@@ -240,9 +238,7 @@ class Recall(StatScores):
 
         is_multiclass:
             Used only in certain special cases, where you want to treat inputs as a different type
-            than what they appear to be. See the parameter's
-            :ref:`documentation section <extensions/metrics:using the is_multiclass parameter>`
-            for a more detailed explanation and examples.
+            than what they appear to be.
 
         compute_on_step:
             Forward only calls ``update()`` and return ``None`` if this is set to ``False``.
@@ -255,6 +251,10 @@ class Recall(StatScores):
         dist_sync_fn:
             Callback that performs the allgather operation on the metric state. When ``None``, DDP
             will be used to perform the allgather.
+
+    Raises:
+        ValueError:
+            If ``average`` is none of ``"micro"``, ``"macro"``, ``"weighted"``, ``"samples"``, ``"none"``, ``None``.
 
     Example:
 
