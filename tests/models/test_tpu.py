@@ -383,3 +383,23 @@ def test_tpu_precision_16_clip_gradients(mock_clip_grad_norm, clip_val, tmpdir):
         mock_clip_grad_norm.assert_called()
     else:
         mock_clip_grad_norm.assert_not_called()
+
+
+@RunIf(tpu=True)
+def test_tpu_popen(tmpdir):
+    """Test if dataloaders passed to trainer works on TPU"""
+    tutils.reset_seed()
+    model = BoringModel()
+
+    trainer = Trainer(
+        default_root_dir=tmpdir,
+        max_epochs=1,
+        tpu_cores=8,
+
+    )
+    trainer.fit(
+        model,
+        train_dataloader=model.train_dataloader(),
+        val_dataloaders=model.val_dataloader(),
+    )
+    assert trainer.state == TrainerState.FINISHED, f"Training failed with {trainer.state}"

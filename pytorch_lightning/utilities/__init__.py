@@ -13,6 +13,7 @@
 # limitations under the License.
 """General utilities"""
 import numpy
+import os
 
 from pytorch_lightning.utilities.apply_func import move_data_to_device  # noqa: F401
 from pytorch_lightning.utilities.distributed import (  # noqa: F401
@@ -48,7 +49,7 @@ from pytorch_lightning.utilities.imports import (  # noqa: F401
 from pytorch_lightning.utilities.parsing import AttributeDict, flatten_dict, is_picklable  # noqa: F401
 from pytorch_lightning.utilities.xla_device import XLADeviceUtils  # noqa: F401
 
-_TPU_AVAILABLE = XLADeviceUtils.tpu_device_exists()
+_TPU_AVAILABLE = True if os.getenv("PL_TPU_AVAILABLE", "0") == "1" else XLADeviceUtils.tpu_device_exists()
 
 FLOAT16_EPSILON = numpy.finfo(numpy.float16).eps
 FLOAT32_EPSILON = numpy.finfo(numpy.float32).eps

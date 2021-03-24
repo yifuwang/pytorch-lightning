@@ -19,6 +19,7 @@ from pytorch_lightning.plugins.training_type.sharded_spawn import DDPSpawnSharde
 from pytorch_lightning.plugins.training_type.single_device import SingleDevicePlugin  # noqa: F401
 from pytorch_lightning.plugins.training_type.single_tpu import SingleTPUPlugin  # noqa: F401
 from pytorch_lightning.plugins.training_type.tpu_spawn import TPUSpawnPlugin  # noqa: F401
+from pytorch_lightning.plugins.training_type.tpu_popen import TPUPopenlugin  # noqa: F401
 from pytorch_lightning.plugins.training_type.training_type_plugin import TrainingTypePlugin  # noqa: F401
 
 __all__ = [
@@ -37,6 +38,7 @@ __all__ = [
     "SingleTPUPlugin",
     "TPUHalfPrecisionPlugin",
     "TPUSpawnPlugin",
+    "TPUPopenlugin",
     'RPCPlugin',
     'RPCSequentialPlugin',
     'TrainingTypePlugin',

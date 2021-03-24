@@ -40,6 +40,7 @@ from pytorch_lightning.plugins import (
     SingleTPUPlugin,
     TPUHalfPrecisionPlugin,
     TPUSpawnPlugin,
+    TPUPopenlugin,
     TrainingTypePlugin,
 )
 from pytorch_lightning.plugins.environments import (
@@ -411,7 +412,8 @@ class AcceleratorConnector(object):
             if isinstance(self.tpu_cores, list):
                 plugin = SingleTPUPlugin(self.tpu_id)
             else:
-                plugin = TPUSpawnPlugin(parallel_devices=list(range(self.tpu_cores)))
+                plugin = TPUPopenlugin(parallel_devices=list(range(self.tpu_cores)))
+                #plugin = TPUSpawnPlugin(parallel_devices=list(range(self.tpu_cores)))
         else:
             single_gpu_ordinal = device_parser.determine_root_gpu_device(self.parallel_device_ids)
             plugin = SingleDevicePlugin(device=torch.device(f"cuda:{single_gpu_ordinal}" if self.on_gpu else "cpu"))
