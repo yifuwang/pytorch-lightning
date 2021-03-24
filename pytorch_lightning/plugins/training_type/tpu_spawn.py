@@ -90,6 +90,7 @@ class TPUSpawnPlugin(DDPSpawnPlugin):
 
     def new_process(self, process_idx: int, trainer, mp_queue) -> None:
         self.mp_queue = mp_queue
+        print(process_idx, os.environ)
 
         seed = os.environ.get("PL_GLOBAL_SEED")
         if seed is not None:
@@ -104,6 +105,7 @@ class TPUSpawnPlugin(DDPSpawnPlugin):
             trainer.progress_bar_callback.disable()
 
         self.model_to_device()
+
         trainer.accelerator.setup_optimizers(trainer)
         trainer.precision_plugin.connect(self._model, None, None)
 
@@ -123,7 +125,9 @@ class TPUSpawnPlugin(DDPSpawnPlugin):
             self.save_spawn_weights(model)
 
     def model_to_device(self) -> None:
-        self._model.to(xm.xla_device())
+        device = xm.xla_device()
+        print(self.local_rank, device)
+        self._model.to(device)
 
     def barrier(self, name: Optional[str] = None) -> None:
         if torch_distrib.is_initialized():

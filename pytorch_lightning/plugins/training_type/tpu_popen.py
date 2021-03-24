@@ -25,7 +25,6 @@ import numpy as np
 import torch
 import torch.distributed as torch_distrib
 import torch.multiprocessing as mp
-
 from pytorch_lightning.core.lightning import LightningModule
 from pytorch_lightning.plugins.training_type.ddp_spawn import DDPSpawnPlugin
 from pytorch_lightning.plugins.training_type.utils import on_colab_kaggle
@@ -36,7 +35,6 @@ from pytorch_lightning.utilities.exceptions import MisconfigurationException
 from pytorch_lightning.utilities.seed import seed_everything
 
 if _TPU_AVAILABLE:
-    import torch_xla
     import torch_xla.core.xla_model as xm
     import torch_xla.distributed.parallel_loader as xla_pl
     import torch_xla.distributed.xla_multiprocessing as xmp
@@ -95,49 +93,28 @@ class TPUPopenlugin(DDPPlugin):
 
         self._setup_xla()
 
-        print("DONE _setup_xla")
-
         self.setup_distributed()
 
-        print("DONE setup_distributed")
-
-        self.barrier("HELLO")
-
-        raise Exception
-
     def _prepare_children_env(self):
-        pf_cfg = xmp._pre_fork_setup(self.num_processes)
+        _host_world_size = self.num_processes * self.num_nodes
+        pf_cfg = xmp._pre_fork_setup(_host_world_size)
         os.environ["PL_DEV_KIND"] = str(pf_cfg.dev_kind)
-        os.environ["PL_NUM_DEVICES"] = str(pf_cfg.num_devices)
+        os.environ["PL_NUM_DEVICES"] = str(_host_world_size)
         os.environ["PL_TPU_AVAILABLE"] = "1"
-        os.environ[xenv.TPU_NUM_DEVICES] = str(pf_cfg.num_devices)
-        xmp._setup_workers(self.num_processes)
 
     def _setup_xla(self) -> int:
         index = os.getenv("LOCAL_RANK", "0")
-        devkind = os.getenv("PL_DEV_KIND")
         num_processes = os.getenv("PL_NUM_DEVICES")
-
-        pf_cfg = xmp.PreForkConfig(devkind, num_processes)
-        os.environ[xenv.HOST_ORDINAL] = index
-        os.environ[xenv.HOST_WORLD_SIZE] = str(self.num_processes)
-
+        dev_kind = os.getenv("PL_DEV_KIND")
+        pf_cfg = xmp.PreForkConfig(dev_kind, num_processes)
         xmp._prepare_env_for_index(index, pf_cfg)
 
-        os.environ[xenv.HOST_ORDINAL] = index
-        os.environ[xenv.HOST_WORLD_SIZE] = str(self.num_processes)
-        xmp._setup_torch_distributed()
+        print("device")
+        device = xm.xla_device(index)
+        print(device)
+        print(index, os.environ)
+        xmp._setup_replication()
         
-        assert torch.distributed.get_world_size() == self.num_processes
-        assert xm.xrt_world_size() > 1
-
-        device_format = f'xla:{"1" if index == "0" else "0"}'
-        #device = xm.xla_device(n=index, devkind=devkind)
-
-        #print(index, "_setup_torch_distributed", device_format)
-        #device = torch_xla._XLAC._xla_set_default_device(device_format)
-        xm.set_replication(device_format, [device_format])
-        print("finished set_replication")
         return int(index)
 
     def _call_children_scripts(self):
@@ -174,7 +151,6 @@ class TPUPopenlugin(DDPPlugin):
             os.environ["PL_EXP_VERSION"] = str(self.lightning_module.logger.version)
 
         num_gpus = len(self.parallel_devices)
-        os.environ["WORLD_SIZE"] = f"{num_gpus * self.num_nodes}"
 
         self.interactive_ddp_procs = []
 
@@ -228,39 +204,13 @@ class TPUPopenlugin(DDPPlugin):
         self.world_size = self.num_nodes * self.num_processes
         print("DONE set_world_ranks")
 
-    def __save_end_of_training_weights(self, model: LightningModule) -> None:
-        # when training ends on these platforms dump weights to get out of the main process
-        if on_colab_kaggle():
-            rank_zero_warn("cleaning up... please do not interrupt")
-            self.save_spawn_weights(model)
-
     def model_to_device(self) -> None:
+        print("HERE")
         self._model.to(xm.xla_device())
 
     def barrier(self, name: Optional[str] = None) -> None:
         if torch_distrib.is_initialized():
             rendezvous(f"pl.Trainer.{name}")
-
-    def transfer_distrib_spawn_state_on_fit_end(self, results):
-        best_model_path = self.lightning_module.trainer.checkpoint_callback.best_model_path
-
-        if self.mp_queue is not None:
-            rank_zero_warn("cleaning up ddp environment...")
-
-            # save the last weights
-            last_path = None
-            if (
-                self.lightning_module.trainer.state == TrainerState.FITTING and best_model_path is not None
-                and len(best_model_path) > 0
-            ):
-                last_path = re.sub(".ckpt", ".tmp_end.ckpt", best_model_path)
-                self.save(self.lightning_module.state_dict(), last_path)
-
-            if self.global_rank == 0:
-                # todo, pass complete checkpoint as state dictionary
-                self.mp_queue.put(best_model_path)
-                self.mp_queue.put(last_path)
-                self.mp_queue.put(results)
 
     def save(self, state_dict: Dict, path: str) -> None:
         """
