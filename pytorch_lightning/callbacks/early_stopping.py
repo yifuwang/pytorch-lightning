@@ -135,6 +135,11 @@ class EarlyStopping(Callback):
         self.best_score = callback_state['best_score']
         self.patience = callback_state['patience']
 
+    # def on_fit_start(self, trainer, *args, **kwargs) -> None:
+    #     # prevent training if we already stopped in an earlier fit
+    #     if self.stopped_epoch < trainer.current_epoch:
+    #         trainer.should_stop = True
+
     def on_validation_end(self, trainer, pl_module):
         from pytorch_lightning.trainer.states import TrainerState
         if trainer.state != TrainerState.FITTING or trainer.sanity_checking:

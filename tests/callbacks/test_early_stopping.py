@@ -16,6 +16,7 @@ import os
 import pickle
 from typing import List, Optional
 from unittest import mock
+from unittest.mock import Mock, MagicMock, patch
 
 import cloudpickle
 import numpy as np
@@ -383,3 +384,32 @@ def test_multiple_early_stopping_callbacks(
         num_processes=num_processes
     )
     trainer.fit(model)
+
+
+def test_early_stopping_multiple_fit(tmpdir):
+    """ Test that calling .fit() a second time does not start a new training after EarlyStopping was triggered. """
+
+    class CurrentModel(BoringModel):
+
+        def validation_epoch_end(self, outputs):
+            losses = [1, 2, 3]
+            val_loss = losses[self.current_epoch]
+            self.log('val_loss', val_loss)
+
+    model = CurrentModel()
+    early_stopping = EarlyStopping(monitor="val_loss", patience=1)
+    trainer = Trainer(
+        default_root_dir=tmpdir,
+        max_epochs=2,
+        callbacks=[early_stopping]
+    )
+    trainer.fit(model)
+    assert early_stopping.stopped_epoch == 1
+    assert trainer.current_epoch == 1
+
+    with patch.object(target=model, attribute="training_step") as mocked:
+        trainer.max_epochs = 3
+        trainer.fit(model)
+        mock.assert_not_called()
+        assert early_stopping.stopped_epoch == 1
+        assert trainer.current_epoch == 1
