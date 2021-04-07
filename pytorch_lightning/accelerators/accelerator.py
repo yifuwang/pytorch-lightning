@@ -11,7 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, TYPE_CHECKING, Union
+import contextlib
+from typing import Any, Callable, Dict, Generator, Iterable, List, Optional, Sequence, TYPE_CHECKING, Union
 
 import torch
 from torch.optim import Optimizer
@@ -21,8 +22,9 @@ from pytorch_lightning.core import LightningModule
 from pytorch_lightning.plugins.precision import ApexMixedPrecisionPlugin, NativeMixedPrecisionPlugin, PrecisionPlugin
 from pytorch_lightning.plugins.training_type import TrainingTypePlugin
 from pytorch_lightning.trainer.states import TrainerState
+from pytorch_lightning.utilities import rank_zero_warn
 from pytorch_lightning.utilities.apply_func import move_data_to_device
-from pytorch_lightning.utilities.enums import AMPType, LightningEnum
+from pytorch_lightning.utilities.enums import AMPType, GradClipAlgorithmType, LightningEnum
 
 if TYPE_CHECKING:
     from torch.cuda.amp import GradScaler
@@ -85,7 +87,8 @@ class Accelerator(object):
             model: the LightningModule
         """
         self.setup_training_type_plugin(self.training_type_plugin, model)
-        self.setup_optimizers(trainer)
+        if not self.training_type_plugin.setup_optimizers_in_pre_dispatch:
+            self.setup_optimizers(trainer)
         self.setup_precision_plugin(self.precision_plugin)
 
     def start_training(self, trainer: 'Trainer') -> None:
@@ -97,12 +100,14 @@ class Accelerator(object):
     def start_predicting(self, trainer: 'Trainer') -> None:
         self.training_type_plugin.start_predicting(trainer)
 
-    def pre_dispatch(self) -> None:
+    def pre_dispatch(self, trainer: 'Trainer') -> None:
         """Hook to do something before the training/evaluation/prediction starts."""
         self.training_type_plugin.pre_dispatch()
+        if self.training_type_plugin.setup_optimizers_in_pre_dispatch:
+            self.setup_optimizers(trainer)
         self.precision_plugin.pre_dispatch()
 
-    def post_dispatch(self) -> None:
+    def post_dispatch(self, trainer: 'Trainer') -> None:
         """Hook to do something before the training/evaluation/prediction starts."""
         self.training_type_plugin.post_dispatch()
         self.precision_plugin.post_dispatch()
@@ -216,7 +221,7 @@ class Accelerator(object):
         with self.precision_plugin.test_step_context(), self.training_type_plugin.test_step_context():
             return self.training_type_plugin.test_step(*args)
 
-    def predict(self, args: List[Union[Any, int]]) -> _STEP_OUTPUT_TYPE:
+    def predict_step(self, args: List[Union[Any, int]]) -> _STEP_OUTPUT_TYPE:
         """The actual predict step.
 
         Args:
@@ -232,7 +237,7 @@ class Accelerator(object):
         args[0] = batch
 
         with self.precision_plugin.predict_context(), self.training_type_plugin.predict_context():
-            return self.training_type_plugin.predict(*args)
+            return self.training_type_plugin.predict_step(*args)
 
     def training_step_end(self, output: _STEP_OUTPUT_TYPE) -> _STEP_OUTPUT_TYPE:
         """A hook to do something at the end of the training step
@@ -310,10 +315,14 @@ class Accelerator(object):
         model_ref = self.lightning_module
         model_ref.optimizer_zero_grad(current_epoch, batch_idx, optimizer, opt_idx)
 
-    def clip_gradients(self, optimizer: Optimizer, clip_val: Union[int, float]) -> None:
+    def clip_gradients(
+        self,
+        optimizer: Optimizer,
+        clip_val: Union[int, float],
+        gradient_clip_algorithm: GradClipAlgorithmType = GradClipAlgorithmType.NORM,
+    ) -> None:
         """clips all the optimizer parameters to the given value"""
-
-        self.precision_plugin.clip_gradients(optimizer, clip_val)
+        self.precision_plugin.clip_gradients(self.model, optimizer, clip_val, gradient_clip_algorithm)
 
     def on_train_epoch_end(self, outputs: Sequence[_STEP_OUTPUT_TYPE]) -> None:
         """Hook to do something on the end of an training epoch
@@ -356,7 +365,12 @@ class Accelerator(object):
 
     def to_device(self, batch: Any) -> Any:
         """Pushes the batch to the root device"""
-        return self.batch_to_device(batch, self.root_device)
+        # Todo (tchaton) Better fix
+        is_dict = isinstance(batch, dict)
+        if is_dict:
+            batch = [batch]
+        batch = self.batch_to_device(batch, self.root_device)
+        return batch[0] if is_dict else batch
 
     @property
     def amp_backend(self) -> Optional[LightningEnum]:
@@ -429,3 +443,78 @@ class Accelerator(object):
         In distributed training, we make sure to transfer the results to the appropriate master process.
         """
         return self.training_type_plugin.results
+
+    @contextlib.contextmanager
+    def model_sharded_context(self) -> Generator[None, None, None]:
+        """
+        Provide hook to create modules in a distributed aware context. This is useful for when we'd like to
+        shard the model instantly - useful for extremely large models. Can save memory and
+        initialization time.
+
+        Returns: Model parallel context.
+        """
+        with self.training_type_plugin.model_sharded_context():
+            yield
+
+    # todo: remove in v1.5
+    def connect_training_type_plugin(self, plugin: TrainingTypePlugin, model: LightningModule) -> None:
+        """
+        Attaches the training type plugin to the accelerator.
+        Also transfers ownership of the model to this plugin
+
+        .. deprecated::v1.3
+            Will be removed in v1.5.0.
+        """
+        rank_zero_warn(
+            'Accelerator method `connect_training_type_plugin` was deprecated in v1.3.'
+            ' It will be removed in v1.5.'
+        )
+        self.setup_training_type_plugin(plugin, model)
+
+    # todo: remove in v1.5
+    def connect_precision_plugin(self, plugin: PrecisionPlugin) -> None:
+        """Attaches the precision plugin to the accelerator
+
+        .. deprecated::v1.3
+            Will be removed in v1.5.0.
+        """
+        rank_zero_warn(
+            'Accelerator method `connect_precision_plugin` was deprecated in v1.3.'
+            ' It will be removed in v1.5.'
+        )
+        self.setup_precision_plugin(plugin)
+
+    def save_checkpoint(self, checkpoint: Dict[str, Any], filepath: str) -> None:
+        """Save model/training states as a checkpoint file through state-dump and file-write.
+
+        Args:
+            checkpoint: dict containing model and trainer state
+            filepath: write-target file's path
+        """
+        self.training_type_plugin.save_checkpoint(checkpoint, filepath)
+
+    @property
+    def call_configure_sharded_model_hook(self) -> bool:
+        """
+        Allow model parallel hook to be called in suitable environments determined by the training type plugin.
+        This is useful for when we want to shard the model once within fit.
+        Returns: True if we want to call the model parallel setup hook.
+        """
+        return self.training_type_plugin.call_configure_sharded_model_hook
+
+    @call_configure_sharded_model_hook.setter
+    def call_configure_sharded_model_hook(self, mode: bool) -> None:
+        self.training_type_plugin.call_configure_sharded_model_hook = mode
+
+    @property
+    def setup_optimizers_in_pre_dispatch(self) -> bool:
+        """
+        Override to delay setting optimizers and schedulers till after dispatch.
+        This is useful when the `TrainingTypePlugin` requires operating on the wrapped accelerator model.
+        However this may break certain precision plugins such as APEX which require optimizers to be set.
+        Returns: If True, delay setup optimizers till pre_dispatch, else call within setup.
+        """
+        return self.training_type_plugin.setup_optimizers_in_pre_dispatch
+
+    def update_global_step(self, total_batch_idx: int, current_global_step: int) -> int:
+        return self.training_type_plugin.update_global_step(total_batch_idx, current_global_step)
