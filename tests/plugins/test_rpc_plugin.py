@@ -27,7 +27,7 @@ from tests.helpers.runif import RunIf
     ["ddp_backend", "gpus", "num_processes"],
     [("ddp_cpu", None, 2), ("ddp", 2, 0), ("ddp_spawn", 2, 0)],
 )
-@RunIf(rpc=True)
+@RunIf(rpc=True, special=True)
 def test_rpc_choice(tmpdir, ddp_backend, gpus, num_processes):
 
     class CB(Callback):
