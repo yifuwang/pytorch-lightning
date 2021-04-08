@@ -10,23 +10,23 @@ from tests.helpers.boring_model import BoringModel
 from tests.helpers.runif import RunIf
 
 
-@pytest.mark.parametrize(
-    ["ddp_backend", "gpus", "num_processes"],
-    [("ddp_cpu", None, 2), ("ddp", 2, 0), ("ddp_spawn", 2, 0)],
-)
-@RunIf(rpc=True, special=True)
-def test_rpc_choice(tmpdir, ddp_backend, gpus, num_processes):
-    model = BoringModel()
-    trainer = Trainer(
-        default_root_dir=str(tmpdir),
-        fast_dev_run=True,
-        gpus=gpus,
-        num_processes=num_processes,
-        distributed_backend=ddp_backend,
-        plugins=[RPCPlugin()]
-    )
-    assert isinstance(trainer.training_type_plugin, RPCPlugin)
-    trainer.fit(model)
+# @pytest.mark.parametrize(
+#     ["ddp_backend", "gpus", "num_processes"],
+#     [("ddp_cpu", None, 2), ("ddp", 2, 0), ("ddp_spawn", 2, 0)],
+# )
+# @RunIf(rpc=True, special=True)
+# def test_rpc_choice(tmpdir, ddp_backend, gpus, num_processes):
+#     model = BoringModel()
+#     trainer = Trainer(
+#         default_root_dir=str(tmpdir),
+#         fast_dev_run=True,
+#         gpus=gpus,
+#         num_processes=num_processes,
+#         distributed_backend=ddp_backend,
+#         plugins=[RPCPlugin()]
+#     )
+#     assert isinstance(trainer.training_type_plugin, RPCPlugin)
+#     trainer.fit(model)
 
 
 class CustomRPCPlugin(RPCPlugin):
