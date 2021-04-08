@@ -26,7 +26,7 @@ if torch.distributed.is_available() and _TORCH_GREATER_EQUAL_1_8:
     )
 
 
-@RunIf(skip_windows=True, min_torch="1.8.0", min_gpus=2, special=True)
+@RunIf(skip_windows=True, min_torch="1.8.0", min_gpus=1000, special=True)
 def test_ddp_fp16_compress_comm_hook(tmpdir):
     """Test for DDP FP16 compress hook."""
     model = BoringModel()
