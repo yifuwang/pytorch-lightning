@@ -5,7 +5,6 @@ from unittest import mock
 import pytest
 
 from pytorch_lightning import Trainer
-from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.plugins.training_type.rpc_sequential import RPCPlugin
 from tests.helpers.boring_model import BoringModel
 from tests.helpers.runif import RunIf
@@ -29,13 +28,6 @@ from tests.helpers.runif import RunIf
 )
 @RunIf(rpc=True, special=True)
 def test_rpc_choice(tmpdir, ddp_backend, gpus, num_processes):
-
-    class CB(Callback):
-
-        def on_fit_start(self, trainer, pl_module):
-            assert isinstance(trainer.training_type_plugin, RPCPlugin)
-            raise RuntimeError('finished plugin check')
-
     model = BoringModel()
     trainer = Trainer(
         default_root_dir=str(tmpdir),
@@ -43,12 +35,10 @@ def test_rpc_choice(tmpdir, ddp_backend, gpus, num_processes):
         gpus=gpus,
         num_processes=num_processes,
         distributed_backend=ddp_backend,
-        callbacks=[CB()],
         plugins=[RPCPlugin()]
     )
-
-    with pytest.raises(RuntimeError, match='finished plugin check'):
-        trainer.fit(model)
+    assert isinstance(trainer.training_type_plugin, RPCPlugin)
+    trainer.fit(model)
 
 
 class CustomRPCPlugin(RPCPlugin):
