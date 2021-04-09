@@ -20,8 +20,9 @@ if _FAIRSCALE_AVAILABLE:
     from fairscale.nn.data_parallel.sharded_ddp import ShardedDataParallel
 
     class LightningShardedDataParallel(_LightningModuleWrapperBase):
-        # Just do this for later docstrings
-        pass
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.require_backward_grad_sync = False
 
     def unwrap_lightning_module_sharded(wrapped_model) -> LightningModule:
         model = wrapped_model
