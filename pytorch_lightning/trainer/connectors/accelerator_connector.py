@@ -59,7 +59,6 @@ from pytorch_lightning.utilities import (
     device_parser,
     DeviceType,
     DistributedType,
-    rank_zero_only,
 )
 from pytorch_lightning.utilities.distributed import rank_zero_info, rank_zero_warn
 from pytorch_lightning.utilities.exceptions import MisconfigurationException
@@ -111,12 +110,6 @@ class AcceleratorConnector(object):
         self._precision_plugin: Optional[PrecisionPlugin] = None
         self._training_type_plugin: Optional[TrainingTypePlugin] = None
         self._cluster_environment: Optional[ClusterEnvironment] = None
-
-        # init the default rank if exists
-        # we need to call this here or NVIDIA flags and other messaging in init will show on all ranks
-        # this way we only show it on rank 0
-        if "LOCAL_RANK" in os.environ:
-            rank_zero_only.rank = int(os.environ["LOCAL_RANK"])
 
         # for gpus allow int, string and gpu list
         if auto_select_gpus and isinstance(gpus, int):
@@ -309,8 +302,8 @@ class AcceleratorConnector(object):
 
     @property
     def is_using_torchelastic(self) -> bool:
-        te_flags_passed = "WORLD_SIZE" in os.environ and ("GROUP_RANK" in os.environ or "NODE_RANK" in os.environ)
-        return te_flags_passed
+        required_env_vars = ("RANK", "GROUP_RANK", "LOCAL_RANK")
+        return all(v in os.environ for v in required_env_vars)
 
     def select_precision_plugin(self) -> PrecisionPlugin:
         # set precision type
