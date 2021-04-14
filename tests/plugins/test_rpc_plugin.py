@@ -10,6 +10,19 @@ from tests.helpers.boring_model import BoringModel
 from tests.helpers.runif import RunIf
 
 
+@mock.patch.dict(
+    os.environ,
+    {
+        "CUDA_VISIBLE_DEVICES": "0,1",
+        "SLURM_NTASKS": "2",
+        "SLURM_JOB_NAME": "SOME_NAME",
+        "SLURM_NODEID": "0",
+        "LOCAL_RANK": "0",
+        "SLURM_PROCID": "0",
+        "SLURM_LOCALID": "0",
+    },
+)
+@mock.patch("torch.cuda.device_count", return_value=2)
 @pytest.mark.parametrize(
     ["ddp_backend", "gpus", "num_processes"],
     [("ddp_cpu", None, 2), ("ddp", 2, 0), ("ddp_spawn", 2, 0)],
