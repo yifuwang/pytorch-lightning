@@ -39,7 +39,6 @@ def test_rpc_choice(tmpdir, ddp_backend, gpus, num_processes):
         plugins=[RPCPlugin()]
     )
     assert isinstance(trainer.training_type_plugin, RPCPlugin)
-    # trainer.fit(model)
 
 
 class CustomRPCPlugin(RPCPlugin):
