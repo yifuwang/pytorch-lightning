@@ -521,12 +521,7 @@ def test_deepspeed_multigpu_stage_3_checkpointing_full_weights(tmpdir):
     run_checkpoint_test(tmpdir, save_full_weights=True)
 
 
-@RunIf(min_gpus=2, deepspeed=True, special=True)
-@pytest.mark.parametrize('cpu_offload', [True, False])
-def test_deepspeed_multigpu_stage_2_accumulated_grad_batches(tmpdir, cpu_offload):
-    """
-    Test to ensure with Stage 2 and multiple GPUs, accumulated grad batches works.
-    """
+def _run_deepspeed_multigpu_stage_2_accumulated_grad_batches(tmpdir, cpu_offload):
     seed_everything(42)
 
     class VerificationCallback(Callback):
@@ -540,6 +535,7 @@ def test_deepspeed_multigpu_stage_2_accumulated_grad_batches(tmpdir, cpu_offload
     model = ModelParallelClassificationModel()
     dm = ClassifDataModule()
     trainer = Trainer(
+        default_root_dir=tmpdir,
         max_epochs=5,
         plugins=[DeepSpeedPlugin(stage=2, cpu_offload=cpu_offload)],
         gpus=2,
@@ -549,6 +545,18 @@ def test_deepspeed_multigpu_stage_2_accumulated_grad_batches(tmpdir, cpu_offload
         callbacks=[VerificationCallback()]
     )
     trainer.fit(model, datamodule=dm)
+
+
+@RunIf(min_gpus=2, deepspeed=True, special=True)
+def test_deepspeed_multigpu_stage_2_accumulated_grad_batches(tmpdir):
+    """ Test to ensure with Stage 2 and multiple GPUs, accumulated grad batches works. """
+    _run_deepspeed_multigpu_stage_2_accumulated_grad_batches(tmpdir, cpu_offload=False)
+
+
+@RunIf(min_gpus=2, deepspeed=True, special=True)
+def test_deepspeed_multigpu_stage_2_accumulated_grad_batches(tmpdir):
+    """ Test to ensure with Stage 2 and multiple GPUs, accumulated grad batches works, CPU offload works """
+    _run_deepspeed_multigpu_stage_2_accumulated_grad_batches(tmpdir, cpu_offload=True)
 
 
 @RunIf(min_gpus=2, deepspeed=True, special=True)
