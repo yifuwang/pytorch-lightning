@@ -29,7 +29,6 @@ from tests.helpers.runif import RunIf
 )
 @RunIf(rpc=True, special=True)
 def test_rpc_choice(tmpdir, ddp_backend, gpus, num_processes):
-    model = BoringModel()
     trainer = Trainer(
         default_root_dir=str(tmpdir),
         fast_dev_run=True,
