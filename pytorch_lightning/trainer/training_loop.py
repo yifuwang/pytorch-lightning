@@ -309,7 +309,7 @@ class TrainLoop:
     def _process_training_step_output(self, training_step_output, split_batch):
         training_step_output_for_epoch_end = training_step_output
 
-        # enable validation_step return None
+        # enable validation_step return None  # TODO: validation step???
         if training_step_output_for_epoch_end is None:
             return None, None
 
@@ -317,7 +317,6 @@ class TrainLoop:
 
         loss = None
         hiddens = None
-        result["extra"] = {}
 
         # handle dict return
         if isinstance(training_step_output, dict):
@@ -325,7 +324,6 @@ class TrainLoop:
             hiddens = training_step_output.pop("hiddens", None)
             if hiddens is not None:
                 hiddens = hiddens.detach()
-            result["extra"] = training_step_output
 
         # handle scalar return
         elif isinstance(training_step_output, torch.Tensor):
@@ -333,6 +331,7 @@ class TrainLoop:
 
         # map to results under the hood
         result.minimize = loss
+        # TODO: set hiddens in result? can keep compat with self.trainer._results.hiddens
         self.trainer.hiddens = hiddens
 
         # track batch for manual reduction with result
@@ -379,7 +378,7 @@ class TrainLoop:
                 processed_tbptt_outputs = []
 
                 for tbptt_output in batch_outputs:
-                    out = tbptt_output.extra
+                    out = {}  # TODO: tbptt_output.extra
                     out['loss'] = tbptt_output.minimize
                     processed_tbptt_outputs.append(out)
 

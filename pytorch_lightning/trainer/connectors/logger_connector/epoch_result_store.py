@@ -13,7 +13,7 @@
 # limitations under the License.
 import logging
 from collections import defaultdict
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from weakref import proxy
 
 import torch
@@ -44,50 +44,49 @@ class ResultStoreType(LightningEnum):
 
 class HookResultStore:
     """
-    This class is defined for internal usage.
-    It holds all metrics logged using the self.log function
-    in the scope of ModelHooks or Callback functions.
+    This class holds all metrics logged using the ``self.log`` function
+    in the scope of ``LightningModule`` or ``Callback`` hooks.
+
+    This allows us to properly reduce the ``Result``` when the loop is finished.
 
     We need to differentiate 3 different scenarios:
-        - (1): We are outside of a batch loop
-            * It means no dataloader_idx, no optimizer idx, etc..
-        - (2): We are inside the training batch loop
-            * We have an optimizer idx and split idx to track
-        - (3): We are inside the evaluation loop
-            * We have a dataloader_idx to track
+        1. We are outside of a batch loop
+        2. We are inside the training batch loop.
+        3. We are inside the evaluation loop.
 
-    The data store `Result` objects for those 3 scenarios in `self._internals`.
+    The data is store in `Result` objects for those 3 scenarios in `self._internals`:
+        1. ``{dataloader_idx: [Result(), ..., Result()]}``. ``dataloader_idx`` is set to 0
+        2. ``{dataloader_idx: {optimizer_idx: {batch_idx: [Result(), ..., Result()]}}}``
+        3. Same as (1) but with any ``dataloader_idx``
 
-    (1): self._internals = {dataloader_idx: [Result(), ..., Result()]}
-        * dataloader_idx not being defined, it is set to 0 b default
-    (2): self._internals = {dataloader_idx: {optimizer_idx: {batch_idx: [Result(), ..., Result()]}}}
-    (3): Same as (1) for simplicity
-
-    Those data structures enables us to reduce properly Result object when batch loop is finished.
+            IF REDUCED:
+            * 1.
+                fx_name -> dl_idx -> opt_idx -> batch_idx -> split_idx
+            * ELSE fx_name -> dl_idx -> batch_idx
+        ELSE:
+            * IF accessing a fx_name defined in batch training loop:
+                fx_name -> dl_idx -> opt_idx
+            * ELSE fx_name -> dl_idx
     """
 
     def __init__(self, fx_name: str, all_gather_fn: Callable, should_warn: bool) -> None:
         self._fx_name = fx_name
         self._all_gather_fn = all_gather_fn
         self._should_warn = should_warn
-        self._internals = {}
+        self._internals: Union[Dict[int, List[Result]], Dict[int, Dict[int, Dict[int, List[Result]]]]] = {}
         self._internals_reduced = {}
-        self._internal_type = None
+        self._internal_type: Optional[ResultStoreType] = None
         self.has_reduced = False
         self._latest_ref = {}
 
     @property
-    def has_several_dataloaders(self) -> bool:
-        return self.num_dataloaders > 1
-
-    @property
     def num_dataloaders(self) -> int:
-        inter = self._internals_reduced if self.has_reduced else self._internals
-        return len(inter)
+        return len(self._internals_reduced if self.has_reduced else self._internals)
 
     def check_dataloader_idx(self, result: Result) -> bool:
+        return False
         random_key = list(result.keys())[-1]
-        return result["meta"][random_key]["dataloader_idx"] is not None
+        return result.meta[random_key]["dataloader_idx"] is not None
 
     def get_latest_from_func_name(self, latest_result_opt, func_name: str, *args, **kwargs) -> Dict:
         results = {}
@@ -124,7 +123,7 @@ class HookResultStore:
             raise Exception("The provided opt_metric should be a Result Object. Something is wrong")
 
         func = getattr(opt_metric, func_name)
-        metrics_to_log = func(*args, add_dataloader_idx=self.has_several_dataloaders, **kwargs)
+        metrics_to_log = func(*args, add_dataloader_idx=self.num_dataloaders > 1, **kwargs)
         if self._should_warn:
             for non_metric_key in opt_metric.get_non_metrics_keys():
                 if non_metric_key in metrics_to_log and non_metric_key not in warning_cache.warned_metrics:
@@ -132,7 +131,7 @@ class HookResultStore:
                     if any(metric[0] != m for m in metric[1:]):
                         warning_cache.warn(
                             f"The value associated to the key {non_metric_key}: {metric.cpu().tolist()} "
-                            "doesn't appear to be the same accross all processes. "
+                            "doesn't appear to be the same across all processes. "
                             "HINT: One could either do: `self.log(..., sync_dist=True)` to force mean"
                             " reduction by default across processes which can be inaccurate or implement"
                             " a `torchmetrics.Metric`"
@@ -255,16 +254,17 @@ class HookResultStore:
 class EpochResultStore:
     """
     This class is defined for internal usage.
-    It holds all metrics logged using the self.log function using `HookResultStore` object.
-    The internal datastructure is as follow:
+    It holds all metrics logged using the self.log function inside `HookResultStore` objects.
+
+    The internal data-structure is as follow:
     self._internals = {"fx_name_0": HookResultStore(), ..., "fx_name_n": HookResultStore()}
-    Pseudo Code Example:
-    ```
-    model._current_fx_name = 'something'
-    model._results = Result()
-    model.log('a', ...)
-    epoch_result_store.cache_result()
-    ```
+
+    ..example::
+
+        model._current_fx_name = 'something'
+        model._results = Result()
+        model.log('a', ...)
+        epoch_result_store.cache_result()
     """
 
     def __init__(self, trainer: 'pl.Trainer') -> None:
@@ -310,8 +310,7 @@ class EpochResultStore:
 
     def cache_result(self) -> None:
         """
-        This function is called after every hook
-        and store the result object
+        This function is called after every hook and stores the result object
         """
         with self.trainer.profiler.profile("cache_result"):
             model_ref = self.trainer.lightning_module
@@ -331,7 +330,7 @@ class EpochResultStore:
             self._internals.setdefault(fx_name, HookResultStore(fx_name, all_gather_fn, self._should_warn))
 
             # attach capture batch_size
-            Result.attach_batch_size(self._batch_size, hook_result)
+            hook_result.batch_sizes.append(self._batch_size)
 
             hook_result = hook_result.detach()
             if self.trainer.move_metrics_to_cpu:
@@ -402,7 +401,7 @@ class EpochResultStore:
 
     def run_batch_from_func_name(self, func_name) -> Dict:
         results = [getattr(hook_result, func_name) for hook_result in self._internals.values()]
-        results = [func(include_forked_originals=False) for func in results]
+        results = [func() for func in results]
         return {k: v for d in sum(results, []) for k, v in d.items()}  # List[List[dict]] -> dict
 
     def get_latest_batch_log_metrics(self) -> Dict:
@@ -456,7 +455,7 @@ class EpochResultStore:
         return self.run_epoch_by_func_name("get_forked_metrics")
 
     def reset(self) -> None:
-        for k, value in self._internals.items():
+        for value in self._internals.values():
             value.reset()
         self._internals = {}
         self._dataloader_idx: Optional[int] = None
@@ -475,7 +474,7 @@ class EpochResultStore:
         reduced: bool = False,
     ):
         """
-        This function is an helper to access stored data
+        This function is a helper to access stored data
 
         It access data from the HookResultStore. Please,
         check its data structure for better understanding
@@ -510,7 +509,7 @@ class EpochResultStore:
             batch_idx: Batch index seen during batch training or evaluation.
                 Works only with ``reduced=False``
 
-            split_idx: Index of split idx in training loop when ttbt is used.
+            split_idx: Index of split idx in training loop when ttbpt is used.
 
             reduced: Data are being aggregated on on_epoch_end.
                 Indicates if we want to access the aggregated Result or not.

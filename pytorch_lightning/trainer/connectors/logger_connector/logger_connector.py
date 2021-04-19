@@ -163,14 +163,10 @@ class LoggerConnector:
         callback_metrics_tmp = {}
 
         if using_results_obj:
-            batch_log_metrics = opt_closure_result.training_step_output.get_batch_log_metrics(
-                include_forked_originals=False
-            )
+            batch_log_metrics = opt_closure_result.training_step_output.get_batch_log_metrics()
             logged_metrics_tmp.update(batch_log_metrics)
 
-            batch_pbar_metrics = opt_closure_result.training_step_output.get_batch_pbar_metrics(
-                include_forked_originals=False
-            )
+            batch_pbar_metrics = opt_closure_result.training_step_output.get_batch_pbar_metrics()
             pbar_metrics_tmp.update(batch_pbar_metrics)
 
             forked_metrics = opt_closure_result.training_step_output.get_forked_metrics()
