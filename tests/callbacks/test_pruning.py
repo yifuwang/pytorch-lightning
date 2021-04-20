@@ -161,16 +161,16 @@ def test_pruning_callback(
 
 
 @RunIf(special=True)
-@pytest.mark.parametrize("parameters_to_prune", [False, True])
-@pytest.mark.parametrize("use_global_unstructured", [False, True])
-def test_pruning_callback_ddp(tmpdir, use_global_unstructured: bool, parameters_to_prune: bool):
-    train_with_pruning_callback(
-        tmpdir,
-        parameters_to_prune=parameters_to_prune,
-        use_global_unstructured=use_global_unstructured,
-        accelerator="ddp",
-        gpus=2,
-    )
+def test_pruning_callback_ddp(tmpdir):
+    for parameters_to_prune in [False, True]:
+        for use_global_unstructured in [False, True]:
+            train_with_pruning_callback(
+                tmpdir,
+                parameters_to_prune=parameters_to_prune,
+                use_global_unstructured=use_global_unstructured,
+                accelerator="ddp",
+                gpus=2,
+            )
 
 
 @RunIf(min_gpus=2, skip_windows=True)
