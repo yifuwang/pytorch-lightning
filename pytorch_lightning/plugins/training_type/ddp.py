@@ -110,7 +110,7 @@ class DDPPlugin(ParallelPlugin):
     def _call_children_scripts(self):
 
         # bookkeeping of spawned processes
-        assert self.global_rank == 0
+        assert self.local_rank == 0
         self._check_can_spawn_children()
         self._has_spawned_children = True
 
@@ -144,17 +144,16 @@ class DDPPlugin(ParallelPlugin):
             raise MisconfigurationException("you selected (distribute_backend = ddp) but did not set Trainer(gpus=?)")
 
         os.environ["PL_IN_DDP_SUBPROCESS"] = "1"
-
-        if self.lightning_module.logger is not None:
-            os.environ["PL_EXP_VERSION"] = str(self.lightning_module.logger.version)
-
         os.environ["WORLD_SIZE"] = f"{self.num_processes * self.num_nodes}"
 
         self.interactive_ddp_procs = []
-
         for local_rank in range(1, self.num_processes):
             env_copy = os.environ.copy()
             env_copy["LOCAL_RANK"] = f"{local_rank}"
+
+            if self.lightning_module.logger is not None:
+                # spawned processes must reference the same log dir, prevent auto-increment version
+                env_copy["PL_EXP_VERSION"] = str(self.lightning_module.logger.version)
 
             # remove env var if global seed not set
             if os.environ.get("PL_GLOBAL_SEED") is None and "PL_GLOBAL_SEED" in env_copy:
@@ -278,9 +277,8 @@ class DDPPlugin(ParallelPlugin):
 
         self.barrier()
 
-    def post_dispatch(self):
-        if "WORLD_SIZE" in os.environ:
-            del os.environ["WORLD_SIZE"]
+    def post_dispatch(self) -> None:
+        self.cluster_environment.teardown()
 
     def barrier(self, *args, **kwargs):
         if torch_distrib.is_initialized():
