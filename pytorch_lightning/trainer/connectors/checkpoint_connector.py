@@ -32,6 +32,8 @@ from pytorch_lightning.utilities import (
 from pytorch_lightning.utilities.cloud_io import atomic_save, get_filesystem
 from pytorch_lightning.utilities.cloud_io import load as pl_load
 from pytorch_lightning.utilities.exceptions import MisconfigurationException
+from pytorch_lightning.utilities.migration.base import pl_legacy_patch
+from pytorch_lightning.utilities.migration.migrations import migrate_checkpoint
 
 if _APEX_AVAILABLE:
     from apex import amp
@@ -89,9 +91,11 @@ class CheckpointConnector:
             rank_zero_warn("No checkpoint file exists at `resume_from_checkpoint`. Start from scratch")
             return False
 
-        checkpoint, load_optimizer_states = self.trainer.training_type_plugin.restore_model_state_from_ckpt_path(
-            checkpoint_path, map_location=lambda storage, loc: storage
-        )
+        with pl_legacy_patch():
+            checkpoint, load_optimizer_states = self.trainer.training_type_plugin.restore_model_state_from_ckpt_path(
+                checkpoint_path, map_location=lambda storage, loc: storage
+            )
+        migrate_checkpoint(checkpoint)
 
         model = self.trainer.lightning_module
 

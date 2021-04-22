@@ -26,6 +26,8 @@ from pytorch_lightning.plugins.base_plugin import Plugin
 from pytorch_lightning.utilities import rank_zero_warn
 from pytorch_lightning.utilities.cloud_io import atomic_save
 from pytorch_lightning.utilities.cloud_io import load as pl_load
+from pytorch_lightning.utilities.migration.base import pl_legacy_patch
+from pytorch_lightning.utilities.migration.migrations import migrate_checkpoint
 
 TBroadcast = TypeVar("T")
 
@@ -216,7 +218,10 @@ class TrainingTypePlugin(Plugin, ABC):
             bool: Wether to load optimizer / lr_schedulers states from checkpoint
 
         """
-        ckpt = pl_load(ckpt_path, map_location=map_location)
+        with pl_legacy_patch():
+            ckpt = pl_load(ckpt_path, map_location=map_location)
+        ckpt = migrate_checkpoint(ckpt)
+
         # restore datamodule states
         if self.lightning_module.trainer.datamodule is not None:
             self.lightning_module.trainer.datamodule.on_load_checkpoint(ckpt)
