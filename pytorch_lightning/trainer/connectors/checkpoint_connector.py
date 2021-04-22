@@ -32,7 +32,6 @@ from pytorch_lightning.utilities import (
 from pytorch_lightning.utilities.cloud_io import atomic_save, get_filesystem
 from pytorch_lightning.utilities.cloud_io import load as pl_load
 from pytorch_lightning.utilities.exceptions import MisconfigurationException
-from pytorch_lightning.utilities.upgrade_checkpoint import KEYS_MAPPING as DEPRECATED_CHECKPOINT_KEYS
 
 if _APEX_AVAILABLE:
     from apex import amp
@@ -132,14 +131,6 @@ class CheckpointConnector:
             raise KeyError(
                 'Trying to restore training state but checkpoint contains only the model.'
                 ' This is probably due to `ModelCheckpoint.save_weights_only` being set to `True`.'
-            )
-
-        if any([key in checkpoint for key in DEPRECATED_CHECKPOINT_KEYS]):
-            raise ValueError(
-                "The checkpoint you're attempting to load follows an"
-                " outdated schema. You can upgrade to the current schema by running"
-                " `python -m pytorch_lightning.utilities.upgrade_checkpoint --file model.ckpt`"
-                " where `model.ckpt` is your checkpoint file."
             )
 
         # restore amp scaling
