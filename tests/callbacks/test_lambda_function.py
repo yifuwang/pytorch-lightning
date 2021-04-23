@@ -28,7 +28,7 @@ def test_lambda_call(tmpdir):
                 raise KeyboardInterrupt
 
     checker = set()
-    hooks = [m for m, _ in inspect.getmembers(Callback, predicate=inspect.isfunction)]
+    hooks = [m for m, _ in inspect.getmembers(Callback, predicate=inspect.isfunction) if not m.startswith("_")]
     hooks_args = {h: (lambda x: lambda *_: checker.add(x))(h) for h in hooks}
     hooks_args["on_save_checkpoint"] = (lambda x: lambda *_: [checker.add(x)])("on_save_checkpoint")
 
