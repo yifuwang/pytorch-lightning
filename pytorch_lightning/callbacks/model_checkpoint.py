@@ -208,6 +208,10 @@ class ModelCheckpoint(Callback):
         self.__init_triggers(every_n_train_steps, every_n_val_epochs, period)
         self.__validate_init_configuration()
 
+    @property
+    def state_identifier(self) -> str:
+        return self._generate_state_identifier(monitor=self.monitor)
+
     def on_pretrain_routine_start(self, trainer, pl_module):
         """
         When pretrain routine starts we build the ckpt dir on the fly

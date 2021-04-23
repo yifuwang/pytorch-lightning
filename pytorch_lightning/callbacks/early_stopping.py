@@ -115,6 +115,10 @@ class EarlyStopping(Callback):
         torch_inf = torch.tensor(np.Inf)
         self.best_score = torch_inf if self.monitor_op == torch.lt else -torch_inf
 
+    @property
+    def state_identifier(self) -> str:
+        return self._generate_state_identifier(monitor=self.monitor)
+
     def _validate_condition_metric(self, logs):
         monitor_val = logs.get(self.monitor)
 
