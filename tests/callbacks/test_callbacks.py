@@ -14,7 +14,7 @@
 from unittest import mock
 from unittest.mock import ANY, call, MagicMock, Mock
 
-from pytorch_lightning import Trainer, Callback
+from pytorch_lightning import Trainer
 from tests.helpers import BoringModel
 
 
