@@ -191,8 +191,8 @@ class CheckpointConnector:
         for scheduler, lrs_state in zip(self.trainer.lr_schedulers, lr_schedulers):
             scheduler['scheduler'].load_state_dict(lrs_state)
 
-        # restore callback states
-        self.trainer.on_load_checkpoint(checkpoint)
+        # # restore callback states
+        # self.trainer.on_load_checkpoint(checkpoint)
 
     # ----------------------------------
     # PRIVATE OPS
