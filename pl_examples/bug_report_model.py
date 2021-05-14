@@ -27,7 +27,7 @@ class ToyTask(pl.LightningModule):
         self.loss_fn = nn.MSELoss()
 
 
-    def setup_here(self, stage: str):
+    def setup(self, stage: str):
         if stage == "test":
             return
         self.model = ToyModel()
@@ -52,8 +52,8 @@ class ToyTask(pl.LightningModule):
                                amsgrad=False)
         return self.optimizer
 
-    def on_load_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
-        self.setup_here("fit")
+    # def on_load_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
+        # self.setup_here("fit")
 
 
 def train():
