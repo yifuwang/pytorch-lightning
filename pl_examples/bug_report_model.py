@@ -25,12 +25,11 @@ class ToyTask(pl.LightningModule):
     def __init__(self):
         super().__init__()
         self.loss_fn = nn.MSELoss()
+        self.model = ToyModel()
 
     def setup(self, stage: str):
         if stage == "test":
             return
-
-        self.model = ToyModel()
 
 
     def forward(self, x):
