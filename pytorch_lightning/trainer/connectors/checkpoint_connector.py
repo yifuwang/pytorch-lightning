@@ -141,14 +141,14 @@ class CheckpointConnector:
                 " where `model.ckpt` is your checkpoint file."
             )
 
+        # restore callback states
+        self.trainer.on_load_checkpoint(checkpoint)
+
         # restore amp scaling
         if self.trainer.amp_backend == AMPType.NATIVE and 'native_amp_scaling_state' in checkpoint:
             self.trainer.scaler.load_state_dict(checkpoint['native_amp_scaling_state'])
         elif self.trainer.amp_backend == AMPType.APEX and 'amp_scaling_state' in checkpoint:
             amp.load_state_dict(checkpoint['amp_scaling_state'])
-
-        # restore callback states
-        self.trainer.on_load_checkpoint(checkpoint)
 
         self.trainer.train_loop.global_step = checkpoint['global_step']
         self.trainer.train_loop.current_epoch = checkpoint['epoch']
