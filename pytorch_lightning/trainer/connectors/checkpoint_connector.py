@@ -141,9 +141,6 @@ class CheckpointConnector:
                 " where `model.ckpt` is your checkpoint file."
             )
 
-        # restore callback states
-        self.trainer.on_load_checkpoint(checkpoint)
-
         # restore amp scaling
         if self.trainer.amp_backend == AMPType.NATIVE and 'native_amp_scaling_state' in checkpoint:
             self.trainer.scaler.load_state_dict(checkpoint['native_amp_scaling_state'])
@@ -193,6 +190,9 @@ class CheckpointConnector:
         lr_schedulers = checkpoint['lr_schedulers']
         for scheduler, lrs_state in zip(self.trainer.lr_schedulers, lr_schedulers):
             scheduler['scheduler'].load_state_dict(lrs_state)
+
+        # restore callback states
+        self.trainer.on_load_checkpoint(checkpoint)
 
     # ----------------------------------
     # PRIVATE OPS
