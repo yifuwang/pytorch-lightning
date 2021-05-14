@@ -31,6 +31,8 @@ class ToyTask(pl.LightningModule):
         if stage == "test":
             return
         self.model = ToyModel()
+        self.optimizer = AdamW(self.model.parameters(), lr=0.001, betas=[0.9, 0.999], eps=1.0e-08, weight_decay=0,
+                               amsgrad=False)
 
 
     def forward(self, x):
@@ -48,8 +50,7 @@ class ToyTask(pl.LightningModule):
         return loss
 
     def configure_optimizers(self):
-        self.optimizer = AdamW(self.model.parameters(), lr=0.001, betas=[0.9, 0.999], eps=1.0e-08, weight_decay=0,
-                               amsgrad=False)
+
         return self.optimizer
 
     # def on_load_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
