@@ -38,8 +38,10 @@ class ToyTask(pl.LightningModule):
     def forward(self, x):
         return self.model(x)
 
-    def training_step(self, batch, batch_idx):
+    def on_train_start(self) -> None:
+        print("model type", type(self.trainer.model))
 
+    def training_step(self, batch, batch_idx):
         targets = self.forward(batch["model_input"])
         loss = self.loss_fn(targets, batch["label"])
 
@@ -55,7 +57,7 @@ class ToyTask(pl.LightningModule):
 
     def on_load_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
         self.setup("fit")
-        print(self.trainer.model)
+        print("model type reload", type(self.trainer.model))
 
 
 def train():
