@@ -54,7 +54,7 @@ class ToyTask(pl.LightningModule):
         return self.optimizer
 
     def on_load_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
-        self.setup_here("fit")
+        self.setup("fit")
         print(self.trainer.model)
 
 
