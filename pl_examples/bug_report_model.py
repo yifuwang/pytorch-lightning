@@ -54,6 +54,7 @@ class ToyTask(pl.LightningModule):
         return loss
 
     def configure_optimizers(self):
+        print("configure optim called !")
         return self.optimizer
 
     def on_load_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
