@@ -89,9 +89,18 @@ class CheckpointConnector:
         if not fs.exists(checkpoint_path):
             raise FileNotFoundError(f"Checkpoint at {checkpoint_path} not found. Aborting training.")
 
-        checkpoint, load_optimizer_states = self.trainer.training_type_plugin.restore_model_state_from_ckpt_path(
-            checkpoint_path, map_location=lambda storage, loc: storage
-        )
+        # checkpoint, load_optimizer_states = self.trainer.training_type_plugin.restore_model_state_from_ckpt_path(
+        #     checkpoint_path, map_location=lambda storage, loc: storage
+        # )
+
+        checkpoint = pl_load(checkpoint_path, map_location=lambda storage, loc: storage)
+        # restore datamodule states
+        if self.trainer.trainer.datamodule is not None:
+            self.trainer.datamodule.on_load_checkpoint(checkpoint)
+
+        # hook: give user access to checkpoint if needed.
+        self.trainer.lightning_module.on_load_checkpoint(checkpoint)
+        self.trainer.lightning_module.load_state_dict(checkpoint['state_dict'])
 
         model = self.trainer.lightning_module
 
@@ -99,7 +108,7 @@ class CheckpointConnector:
             model.cuda(self.trainer.root_gpu)
 
         # restore training state
-        self.restore_training_state(checkpoint, load_optimizer_states)
+        self.restore_training_state(checkpoint, load_optimizer_states=True)
 
         rank_zero_info(f"Restored states from the checkpoint file at {checkpoint_path}")
         return True
