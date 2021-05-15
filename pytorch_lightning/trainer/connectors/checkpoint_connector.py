@@ -95,7 +95,7 @@ class CheckpointConnector:
 
         checkpoint = pl_load(checkpoint_path, map_location=lambda storage, loc: storage)
         # restore datamodule states
-        if self.trainer.trainer.datamodule is not None:
+        if self.trainer.datamodule is not None:
             self.trainer.datamodule.on_load_checkpoint(checkpoint)
 
         # hook: give user access to checkpoint if needed.
