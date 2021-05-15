@@ -19,7 +19,7 @@ import torch
 
 import pytorch_lightning as pl
 from pytorch_lightning.core.step_result import Result
-from pytorch_lightning.trainer.states import TrainerState
+from pytorch_lightning.trainer.states import TrainerFn
 from pytorch_lightning.utilities import DistributedType, LightningEnum
 
 
@@ -253,7 +253,7 @@ class EpochResultStore:
         """
         model_ref = self.trainer.lightning_module
         return {
-            "batch_idx": self.trainer.batch_idx,
+            "batch_idx": self.trainer.train_loop.batch_idx,
             "fx_name": model_ref._current_hook_fx_name or model_ref._current_fx_name,
             "dataloader_idx": model_ref._current_dataloader_idx or 0,
             "opt_idx": self._opt_idx or 0,
@@ -355,7 +355,7 @@ class EpochResultStore:
 
         # TODO(carmocca): when we implement flushing the logger connector metrics after
         # the trainer.state changes, this should check trainer.evaluating instead
-        if self.trainer.state in (TrainerState.TESTING, TrainerState.VALIDATING):
+        if self.trainer.state.fn in (TrainerFn.TESTING, TrainerFn.VALIDATING):
             logger_connector.evaluation_callback_metrics.update(callback_metrics)
 
         # update callback_metrics

@@ -128,13 +128,14 @@ class LightningCLI:
         .. warning:: ``LightningCLI`` is in beta and subject to change.
 
         Args:
-            model_class: The LightningModule class to train on.
-            datamodule_class: An optional LightningDataModule class.
+            model_class: :class:`~pytorch_lightning.core.lightning.LightningModule` class to train on.
+            datamodule_class: An optional :class:`~pytorch_lightning.core.datamodule.LightningDataModule` class.
             save_config_callback: A callback class to save the training config.
-            trainer_class: An optional extension of the Trainer class.
+            trainer_class: An optional subclass of the :class:`~pytorch_lightning.trainer.trainer.Trainer` class.
             trainer_defaults: Set to override Trainer defaults or add persistent callbacks.
-            seed_everything_default: Default value for seed_everything argument.
-            description: Description of the tool shown when running --help.
+            seed_everything_default: Default value for the :func:`~pytorch_lightning.utilities.seed.seed_everything`
+                seed argument.
+            description: Description of the tool shown when running ``--help``.
             env_prefix: Prefix for environment variables.
             env_parse: Whether environment variable parsing is enabled.
             parser_kwargs: Additional arguments to instantiate LightningArgumentParser.
@@ -161,12 +162,11 @@ class LightningCLI:
         self.parser_kwargs.update({'description': description, 'env_prefix': env_prefix, 'default_env': env_parse})
 
         self.init_parser()
-        self.add_arguments_to_parser(self.parser)
         self.add_core_arguments_to_parser()
-        self.before_parse_arguments(self.parser)
+        self.add_arguments_to_parser(self.parser)
         self.parse_arguments()
         if self.config['seed_everything'] is not None:
-            seed_everything(self.config['seed_everything'])
+            seed_everything(self.config['seed_everything'], workers=True)
         self.before_instantiate_classes()
         self.instantiate_classes()
         self.prepare_fit_kwargs()
@@ -177,13 +177,6 @@ class LightningCLI:
     def init_parser(self) -> None:
         """Method that instantiates the argument parser"""
         self.parser = LightningArgumentParser(**self.parser_kwargs)
-
-    def add_arguments_to_parser(self, parser: LightningArgumentParser) -> None:
-        """Implement to add extra arguments to parser
-
-        Args:
-            parser: The argument parser object to which arguments should be added
-        """
 
     def add_core_arguments_to_parser(self) -> None:
         """Adds arguments from the core classes to the parser"""
@@ -200,11 +193,11 @@ class LightningCLI:
         if self.datamodule_class is not None:
             self.parser.add_lightning_class_args(self.datamodule_class, 'data', subclass_mode=self.subclass_mode_data)
 
-    def before_parse_arguments(self, parser: LightningArgumentParser) -> None:
-        """Implement to run some code before parsing arguments
+    def add_arguments_to_parser(self, parser: LightningArgumentParser) -> None:
+        """Implement to add extra arguments to parser or link arguments
 
         Args:
-            parser: The argument parser object that will be used to parse
+            parser: The argument parser object to which arguments can be added
         """
 
     def parse_arguments(self) -> None:
@@ -261,7 +254,7 @@ class LightningCLI:
 
     def fit(self) -> None:
         """Runs fit of the instantiated trainer class and prepared fit keyword arguments"""
-        self.fit_result = self.trainer.fit(**self.fit_kwargs)
+        self.trainer.fit(**self.fit_kwargs)
 
     def after_fit(self) -> None:
         """Implement to run some code after fit has finished"""

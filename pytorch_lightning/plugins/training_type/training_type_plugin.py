@@ -16,6 +16,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, Generator, Iterable, Optional, Tuple, TypeVar, Union
 
 import torch
+from torch import Tensor
 from torch.nn import Module
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
@@ -26,6 +27,7 @@ from pytorch_lightning.plugins.base_plugin import Plugin
 from pytorch_lightning.utilities import rank_zero_warn
 from pytorch_lightning.utilities.cloud_io import atomic_save
 from pytorch_lightning.utilities.cloud_io import load as pl_load
+from pytorch_lightning.utilities.types import _EVALUATE_OUTPUT, _PREDICT_OUTPUT
 
 TBroadcast = TypeVar("T")
 
@@ -37,7 +39,7 @@ class TrainingTypePlugin(Plugin, ABC):
 
     def __init__(self) -> None:
         self._model = None
-        self._results = None
+        self._results: Optional[Union[_EVALUATE_OUTPUT, _PREDICT_OUTPUT]] = None
         self._call_configure_sharded_model_hook = True
 
     def connect(self, model: Module) -> None:
@@ -124,12 +126,14 @@ class TrainingTypePlugin(Plugin, ABC):
         return unwrap_lightning_module(self._model)
 
     @property
-    def results(self) -> Any:
+    def results(self) -> Optional[Union[_EVALUATE_OUTPUT, _PREDICT_OUTPUT]]:
         """
-        The results of the last training/testing run will be cached here.
-        In distributed training, we make sure to transfer the results to the appropriate master process.
+        Enables plugin-agnostic access to the result returned by the training/evaluation/prediction run. The result is
+        cached instead of returned directly, because some plugins require transmitting the results from one
+        multiprocessing context to another in a separate step. For example, the plugins that use the "spawn"
+        start-method send the result to the master process through a
+        `multiprocessing queue (shared memory) <https://pytorch.org/docs/stable/multiprocessing.html>`_.
         """
-        # TODO: improve these docs
         return self._results
 
     @property
@@ -237,6 +241,11 @@ class TrainingTypePlugin(Plugin, ABC):
         Returns: New optimizer step calls
         """
         return current_global_step + 1
+
+    def lightning_module_state_dict(self) -> Dict[str, Union[Any, Tensor]]:
+        """Returns model state."""
+        model = self.lightning_module
+        return model.state_dict()
 
     def save_checkpoint(self, checkpoint: Dict[str, Any], filepath: str) -> None:
         """Save model/training states as a checkpoint file through state-dump and file-write.

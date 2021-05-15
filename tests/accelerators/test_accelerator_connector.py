@@ -106,7 +106,6 @@ def test_accelerator_choice_ddp_slurm(setup_distributed_mock):
     class CB(Callback):
 
         def on_fit_start(self, trainer, pl_module):
-            assert trainer.use_ddp
             assert trainer.accelerator_connector.is_slurm_managing_tasks
             assert isinstance(trainer.accelerator, GPUAccelerator)
             assert isinstance(trainer.training_type_plugin, DDPPlugin)
@@ -145,7 +144,6 @@ def test_accelerator_choice_ddp2_slurm(device_count_mock, setup_distributed_mock
     class CB(Callback):
 
         def on_fit_start(self, trainer, pl_module):
-            assert trainer.use_ddp2
             assert trainer.accelerator_connector.is_slurm_managing_tasks
             assert isinstance(trainer.accelerator, GPUAccelerator)
             assert isinstance(trainer.training_type_plugin, DDP2Plugin)
@@ -184,7 +182,6 @@ def test_accelerator_choice_ddp_te(device_count_mock, setup_distributed_mock):
     class CB(Callback):
 
         def on_fit_start(self, trainer, pl_module):
-            assert trainer.use_ddp
             assert isinstance(trainer.accelerator, GPUAccelerator)
             assert isinstance(trainer.training_type_plugin, DDPPlugin)
             assert isinstance(trainer.training_type_plugin.cluster_environment, TorchElasticEnvironment)
@@ -222,7 +219,6 @@ def test_accelerator_choice_ddp2_te(device_count_mock, setup_distributed_mock):
     class CB(Callback):
 
         def on_fit_start(self, trainer, pl_module):
-            assert trainer.use_ddp2
             assert isinstance(trainer.accelerator, GPUAccelerator)
             assert isinstance(trainer.training_type_plugin, DDP2Plugin)
             assert isinstance(trainer.training_type_plugin.cluster_environment, TorchElasticEnvironment)
@@ -258,7 +254,6 @@ def test_accelerator_choice_ddp_cpu_te(device_count_mock, setup_distributed_mock
     class CB(Callback):
 
         def on_fit_start(self, trainer, pl_module):
-            assert trainer.use_ddp
             assert isinstance(trainer.accelerator, CPUAccelerator)
             assert isinstance(trainer.training_type_plugin, DDPPlugin)
             assert isinstance(trainer.training_type_plugin.cluster_environment, TorchElasticEnvironment)
@@ -295,7 +290,6 @@ def test_accelerator_choice_ddp_cpu_slurm(device_count_mock, setup_distributed_m
     class CB(Callback):
 
         def on_fit_start(self, trainer, pl_module):
-            assert trainer.use_ddp
             assert trainer.accelerator_connector.is_slurm_managing_tasks
             assert isinstance(trainer.accelerator, CPUAccelerator)
             assert isinstance(trainer.training_type_plugin, DDPPlugin)
@@ -454,11 +448,13 @@ def test_ipython_incompatible_backend_error(*_):
     with pytest.raises(MisconfigurationException, match="backend ddp is not compatible"):
         Trainer(accelerator="ddp", gpus=2)
 
-    with pytest.raises(MisconfigurationException, match="backend ddp is not compatible"):
-        Trainer(accelerator="ddp_cpu", num_processes=2)
-
     with pytest.raises(MisconfigurationException, match="backend ddp2 is not compatible"):
         Trainer(accelerator="ddp2", gpus=2)
+
+
+@mock.patch("pytorch_lightning.utilities._IS_INTERACTIVE", return_value=True)
+def test_ipython_compatible_backend(*_):
+    Trainer(accelerator="ddp_cpu", num_processes=2)
 
 
 @pytest.mark.parametrize(
