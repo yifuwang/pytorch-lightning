@@ -58,6 +58,7 @@ class ToyTask(pl.LightningModule):
 
     def on_load_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
         self.setup("fit")
+        self.trainer.accelerator.setup(self.trainer, self)
         print("accelerator optim", id(self.trainer.accelerator.optimizers[0]))
         print("model type reload", type(self.trainer.model))
 
