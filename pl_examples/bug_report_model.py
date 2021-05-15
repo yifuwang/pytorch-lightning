@@ -34,6 +34,8 @@ class ToyTask(pl.LightningModule):
         self.optimizer = AdamW(self.model.parameters(), lr=0.001, betas=[0.9, 0.999], eps=1.0e-08, weight_decay=0,
                                amsgrad=False)
 
+        print("my optimizer: ", id(self.optimizer))
+
 
     def forward(self, x):
         return self.model(x)
@@ -52,11 +54,11 @@ class ToyTask(pl.LightningModule):
         return loss
 
     def configure_optimizers(self):
-
         return self.optimizer
 
     def on_load_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
         self.setup("fit")
+        print("accelerator optim", id(self.trainer.accelerator.optimizers[0]))
         print("model type reload", type(self.trainer.model))
 
 
