@@ -716,9 +716,8 @@ class Trainer(
         self.accelerator.connect(model)
         self.accelerator.setup_environment()
         self._call_setup_hook(model)  # allow user to setup lightning_module in accelerator environment
-        # restore training and model before hpc is called
         self._call_configure_sharded_model(model)  # allow user to setup in model sharded environment
-        self.checkpoint_connector.restore_weights()
+        # self.checkpoint_connector.restore_weights()
         self.accelerator.setup(self, model)  # note: this sets up self.lightning_module
 
         # ----------------------------
@@ -832,6 +831,8 @@ class Trainer(
         # print model summary
         if self.is_global_zero and self.weights_summary is not None and not self.testing:
             ref_model.summarize(mode=self.weights_summary)
+
+        self.checkpoint_connector.restore_weights()
 
         # on pretrain routine end
         self.on_pretrain_routine_end()
