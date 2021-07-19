@@ -1063,7 +1063,11 @@ truncated_bptt_steps
 ^^^^^^^^^^^^^^^^^^^^
 
 Truncated back prop breaks performs backprop every k steps of
-a much longer sequence.
+a much longer sequence. This is made possible by passing training batches
+splitted along the time-dimensions into splits of size k to the
+``training_step``. In order to keep the same forward propagation behavior, all
+hidden states should be kept in-between each time-dimension split.
+
 
 If this is enabled, your batches will automatically get truncated
 and the trainer will apply Truncated Backprop to it.
@@ -1080,23 +1084,40 @@ recurrent network trajectories."
 
     class MyModel(LightningModule):
 
-        def __init__(self):
+        def __init__(self, input_size, hidden_size, num_layers):
             super().__init__()
+            # batch_first has to be set to True
+            self.lstm = nn.LSTM(
+                input_size=input_size,
+                hidden_size=hidden_size,
+                num_layers=num_layers,
+                batch_first=True,
+            )
+
+            ...
+
             # Important: This property activates truncated backpropagation through time
             # Setting this value to 2 splits the batch into sequences of size 2
             self.truncated_bptt_steps = 2
 
         # Truncated back-propagation through time
         def training_step(self, batch, batch_idx, hiddens):
+            x, y = batch
+
             # the training step must be updated to accept a ``hiddens`` argument
             # hiddens are the hiddens from the previous truncated backprop step
-            out, (hiddens, _) = self.lstm(data, hiddens)
+            out, hiddens = self.lstm(x, hiddens)
+
+            ...
+
             return {
                 "loss": ...,
                 "hiddens": hiddens
             }
 
-Lightning takes care to split your batch along the time-dimension.
+Lightning takes care of splitting your batch along the time-dimension. It is
+assumed to be the second dimension of your batches. Therefore, in the
+example above we have set ``batch_first=True``.
 
 .. code-block:: python
 
@@ -1170,9 +1191,11 @@ for more information.
             on_before_zero_grad()
             optimizer_zero_grad()
 
+            on_before_backward()
             backward()
             on_after_backward()
 
+            on_before_optimizer_step()
             optimizer_step()
 
             on_train_batch_end()
@@ -1223,6 +1246,12 @@ get_progress_bar_dict
 ~~~~~~~~~~~~~~~~~~~~~
 
 .. automethod:: pytorch_lightning.core.lightning.LightningModule.get_progress_bar_dict
+    :noindex:
+
+on_before_backward
+~~~~~~~~~~~~~~~~~~
+
+.. automethod:: pytorch_lightning.core.hooks.ModelHooks.on_before_backward
     :noindex:
 
 on_after_backward
@@ -1421,6 +1450,12 @@ on_test_model_train
 ~~~~~~~~~~~~~~~~~~~
 
 .. automethod:: pytorch_lightning.core.hooks.ModelHooks.on_test_model_train
+    :noindex:
+
+on_before_optimizer_step
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automethod:: pytorch_lightning.core.hooks.ModelHooks.on_before_optimizer_step
     :noindex:
 
 optimizer_step
