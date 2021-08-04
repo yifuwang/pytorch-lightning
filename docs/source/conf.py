@@ -28,7 +28,7 @@ sys.path.insert(0, os.path.abspath(PATH_ROOT))
 sys.path.append(os.path.join(PATH_RAW_NB, ".actions"))
 
 try:
-    from helpers import HelperCLI  # noqa: E401 E402
+    from helpers import HelperCLI
 except Exception:
     raise ModuleNotFoundError("To build the code, please run: `git submodule update --init --recursive`")
 
@@ -142,7 +142,11 @@ language = None
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = [f"{FOLDER_GENERATED}/PULL_REQUEST_TEMPLATE.md", "notebooks/course_UvA-DL/*", "notebooks/template*"]
+exclude_patterns = [
+    f"{FOLDER_GENERATED}/PULL_REQUEST_TEMPLATE.md",
+    "notebooks/course_UvA-DL/*",
+    "notebooks/sample-template*",
+]
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = None
