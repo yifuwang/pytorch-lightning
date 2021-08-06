@@ -28,7 +28,8 @@ from pytorch_lightning.accelerators import Accelerator, IPUAccelerator
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.core.datamodule import LightningDataModule
 from pytorch_lightning.loggers import LightningLoggerBase
-from pytorch_lightning.loops import TrainingBatchLoop, TrainingEpochLoop
+from pytorch_lightning.loops.epoch.training_epoch_loop import FlexibleOptimizationFlow
+from pytorch_lightning.loops import FlexibleOptimizationFlow, TrainingBatchLoop, TrainingEpochLoop
 from pytorch_lightning.loops.dataloader.evaluation_loop import EvaluationLoop
 from pytorch_lightning.loops.dataloader.prediction_loop import PredictionLoop
 from pytorch_lightning.loops.fit_loop import FitLoop
@@ -82,6 +83,7 @@ from pytorch_lightning.utilities.imports import _fault_tolerant_enabled
 from pytorch_lightning.utilities.model_helpers import is_overridden
 from pytorch_lightning.utilities.model_summary import ModelSummary, summarize
 from pytorch_lightning.utilities.seed import reset_seed
+from pytorch_lightning.utilities.signature_utils import is_param_in_hook_signature
 from pytorch_lightning.utilities.types import _EVALUATE_OUTPUT, _PREDICT_OUTPUT, EVAL_DATALOADERS, TRAIN_DATALOADERS
 
 log = logging.getLogger(__name__)
@@ -381,9 +383,10 @@ class Trainer(
             max_epochs=(1000 if (max_epochs is None and max_steps is None) else max_epochs),
         )
         training_epoch_loop = TrainingEpochLoop(min_steps, max_steps)
-        training_batch_loop = TrainingBatchLoop()
         training_validation_loop = EvaluationLoop()
-        training_epoch_loop.connect(batch_loop=training_batch_loop, val_loop=training_validation_loop)
+        # batch_loop is connected in .fit() so we can dispatch to different
+        # batch loops based on different LightningModule configuration.
+        training_epoch_loop.connect(val_loop=training_validation_loop)
         fit_loop.connect(epoch_loop=training_epoch_loop)
 
         # default .fit() loop
@@ -491,6 +494,19 @@ class Trainer(
 
         self.num_predict_batches = []
 
+    def _connect_batch_loop(self, model: "pl.LightningModule") -> None:
+        training_step_fx = getattr(model, "training_step")
+        if is_param_in_hook_signature(training_step_fx, "dataloader_iter"):
+            log.warning(
+                "Using FlexibleOptimizationFlow since `training_step` has argument `dataloader_iter`. "
+                "Note that this is an experimental feature and its behavior may subject to change."
+            )
+            batch_loop = FlexibleOptimizationFlow(self, model)
+        else:
+            batch_loop = TrainingBatchLoop()
+
+        self.fit_loop.epoch_loop.connect(batch_loop)
+
     def fit(
         self,
         model: "pl.LightningModule",
@@ -514,6 +530,8 @@ class Trainer(
             datamodule: An instance of :class:`~pytorch_lightning.core.datamodule.LightningDataModule`.
         """
         Trainer._log_api_event("fit")
+
+        self._connect_batch_loop(model)
 
         self.state.fn = TrainerFn.FITTING
         self.state.status = TrainerStatus.RUNNING

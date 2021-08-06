@@ -11,18 +11,21 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Any, Dict, Iterator, List, Optional, Union
+from typing import Any, Dict, Iterator, List, Optional, Union, Tuple
 
 import torch
 
 from pytorch_lightning import loops  # import as loops to avoid circular imports
-from pytorch_lightning.loops.batch import TrainingBatchLoop
+from pytorch_lightning.loops.batch import FlexibleOptimizationFlow, TrainingBatchLoop
 from pytorch_lightning.trainer.connectors.logger_connector.result import ResultCollection
 from pytorch_lightning.trainer.progress import Progress, SchedulerProgress
 from pytorch_lightning.utilities.exceptions import MisconfigurationException
 from pytorch_lightning.utilities.model_helpers import is_overridden
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 from pytorch_lightning.utilities.warnings import WarningCache
+
+
+BATCH_LOOP_TYPE = Optional[Tuple[TrainingBatchLoop, FlexibleOptimizationFlow]]
 
 
 class TrainingEpochLoop(loops.Loop):
@@ -38,6 +41,7 @@ class TrainingEpochLoop(loops.Loop):
         super().__init__()
         self.min_steps: int = min_steps
         self.max_steps: int = max_steps
+
         self.global_step: int = 0
         # the total batch index across all epochs
         self.total_batch_idx: int = 0
@@ -45,7 +49,7 @@ class TrainingEpochLoop(loops.Loop):
         self.batch_progress = Progress()
         self.scheduler_progress = SchedulerProgress()
 
-        self.batch_loop: Optional[TrainingBatchLoop] = None
+        self.batch_loop: BATCH_LOOP_TYPE = None
         self.val_loop: Optional["loops.EvaluationLoop"] = None
 
         self._results = ResultCollection(training=True)
@@ -70,7 +74,9 @@ class TrainingEpochLoop(loops.Loop):
         return max_steps_reached or self.trainer.should_stop or self._num_training_batches_reached(self.is_last_batch)
 
     def connect(
-        self, batch_loop: Optional[TrainingBatchLoop] = None, val_loop: Optional["loops.EvaluationLoop"] = None
+        self,
+        batch_loop: BATCH_LOOP_TYPE = None,
+        val_loop: Optional["loops.EvaluationLoop"] = None,
     ) -> None:
         """Optionally connect a custom batch or validation loop to this training epoch loop."""
         if batch_loop is not None:
@@ -107,21 +113,34 @@ class TrainingEpochLoop(loops.Loop):
         Raises:
             StopIteration: When the epoch is canceled by the user returning -1
         """
-        _, (batch, is_last) = next(dataloader_iter)
+        if isinstance(self.batch_loop, FlexibleOptimizationFlow):
+            # By contract, when using `FlexibleOptimizationFlow`,
+            # `training_step` is responsible for reporting `is_last` in the
+            # result dict, which is used to determine the stop condition for
+            # the epoch. So as long as `advance` is invoked, it's correct to
+            # assume that there are more batches to be processed.
+            self.batch_progress.increment_ready()
+            with self.trainer.profiler.profile("run_training_batch"):
+                batch_output = self.batch_loop.run(dataloader_iter)
+            self.batch_progress.increment_processed()
+            is_last = batch_output.is_last
+        else:
+            _, (batch, is_last) = next(dataloader_iter)
+
+            # ------------------------------------
+            # TRAINING_STEP + TRAINING_STEP_END
+            # ------------------------------------
+            with self.trainer.profiler.profile("training_batch_to_device"):
+                batch = self.trainer.accelerator.batch_to_device(batch, dataloader_idx=self._dataloader_idx)
+
+            self.batch_progress.increment_ready()
+
+            with self.trainer.profiler.profile("run_training_batch"):
+                batch_output = self.batch_loop.run(batch, self.batch_idx, self._dataloader_idx)
+
+            self.batch_progress.increment_processed()
+
         self.is_last_batch = is_last
-
-        # ------------------------------------
-        # TRAINING_STEP + TRAINING_STEP_END
-        # ------------------------------------
-        with self.trainer.profiler.profile("training_batch_to_device"):
-            batch = self.trainer.accelerator.batch_to_device(batch, dataloader_idx=self._dataloader_idx)
-
-        self.batch_progress.increment_ready()
-
-        with self.trainer.profiler.profile("run_training_batch"):
-            batch_output = self.batch_loop.run(batch, self.batch_idx, self._dataloader_idx)
-
-        self.batch_progress.increment_processed()
 
         # when returning -1 from train_step, we end epoch early
         if batch_output.signal == -1:
@@ -137,9 +156,10 @@ class TrainingEpochLoop(loops.Loop):
         processed_batch_end_outputs = self._prepare_outputs(batch_end_outputs, batch_mode=True)
 
         # hook
-        self.trainer.call_hook(
-            "on_train_batch_end", processed_batch_end_outputs, batch, self.batch_idx, self._dataloader_idx
-        )
+        if not isinstance(self.batch_loop, FlexibleOptimizationFlow):
+            self.trainer.call_hook(
+                "on_train_batch_end", processed_batch_end_outputs, batch, self.batch_idx, self._dataloader_idx
+            )
         self.trainer.call_hook("on_batch_end")
         self.trainer.logger_connector.on_batch_end()
 
